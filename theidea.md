@@ -145,3 +145,35 @@ A Pokemon-style overworld as a personal website. Visitors control a sprite, walk
 - **Photos** → TBD
 - **Projects** → TBD
 - **Gym data** → TBD
+
+---
+
+## Implementation Plan
+
+### Phase 1: Proof of Concept
+- [ ] Phaser 3 running in React
+- [ ] Simple tilemap (hardcoded grass/water/trees)
+- [ ] Character sprite that moves with arrow keys
+- [ ] Camera follows character
+- **Validate:** Can you walk around a basic island?
+
+### Phase 2: The World
+- [ ] Design island map in Tiled
+- [ ] Import tilemap JSON into Phaser
+- [ ] Collision detection (trees, buildings, water)
+- [ ] Interaction zones (press space near objects)
+- **Validate:** Does the island feel right?
+
+### Phase 3: Transitions
+- [ ] Circle wipe transition component
+- [ ] Hook interactions to React navigation
+- [ ] Return to game at same position
+- **Validate:** Full loop — walk, interact, view, return
+
+### Phase 4: Polish & Content
+- [ ] Real pixel art assets
+- [ ] Two ragdoll cats (wandering NPCs)
+- [ ] Lo-fi audio per zone
+- [ ] Secrets & easter eggs
+- [ ] Mobile illustrated map fallback
+- [ ] Content pages (Lab, Library, Home, etc.)
