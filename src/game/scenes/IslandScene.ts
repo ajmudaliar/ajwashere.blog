@@ -140,6 +140,8 @@ export class IslandScene extends Phaser.Scene {
   private interactPrompt!: Phaser.GameObjects.Text
   private nearbyBuilding: { section: string; label: string } | null = null
   private interactKey!: Phaser.Input.Keyboard.Key
+  private npc!: Phaser.GameObjects.Sprite
+  private npcBubble: Phaser.GameObjects.Container | null = null
 
   constructor() {
     super({ key: 'IslandScene' })
@@ -380,10 +382,10 @@ export class IslandScene extends Phaser.Scene {
     // Add NPC (me) standing near the red house
     const npcX = 6 * 16 + 8
     const npcY = 26 * 16 + 8
-    const npc = this.add.sprite(npcX, npcY, 'character_idle')
-    npc.play('idle_right')
-    npc.setScale(1)
-    npc.setDepth(npcY)
+    this.npc = this.add.sprite(npcX, npcY, 'character_idle')
+    this.npc.play('idle_right')
+    this.npc.setScale(1)
+    this.npc.setDepth(npcY)
 
     // Create "About me" marker above NPC
     this.createNpcMarker(npcX, npcY)
@@ -734,9 +736,95 @@ export class IslandScene extends Phaser.Scene {
 
   private handleInteraction() {
     if (this.nearbyBuilding) {
-      // Navigate to the section page
-      window.location.href = `/${this.nearbyBuilding.section}`
+      if (this.nearbyBuilding.section === 'about') {
+        this.showNpcReply()
+      } else {
+        // Navigate to the section page
+        window.location.href = `/${this.nearbyBuilding.section}`
+      }
     }
+  }
+
+  private npcReplies = [
+    "Hey there! Chat's coming soon.",
+    "Still setting things up here!",
+    "Check back later for a chat!",
+    "Nice to meet you!",
+  ]
+  private lastReplyIndex = -1
+
+  private showNpcReply() {
+    // Clean up previous bubble
+    if (this.npcBubble) {
+      this.npcBubble.destroy()
+      this.npcBubble = null
+    }
+
+    // Pick a random reply (different from last)
+    let replyIndex = Math.floor(Math.random() * this.npcReplies.length)
+    if (replyIndex === this.lastReplyIndex) {
+      replyIndex = (replyIndex + 1) % this.npcReplies.length
+    }
+    this.lastReplyIndex = replyIndex
+    const message = this.npcReplies[replyIndex]
+
+    // Create bubble above NPC
+    this.npcBubble = this.add.container(this.npc.x, this.npc.y - 30)
+    this.npcBubble.setDepth(30000)
+    this.npcBubble.setAlpha(0)
+
+    const padding = 10
+    const text = this.add.text(0, 0, message, {
+      fontSize: '7px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#3d3d3d',
+      align: 'center',
+      lineSpacing: 4,
+      resolution: 4,
+    })
+    text.setOrigin(0.5, 1)
+
+    const bubbleWidth = Math.max(text.width + padding * 2, 60)
+    const bubbleHeight = text.height + padding * 2
+    const tailHeight = 10
+
+    const bubble = this.add.graphics()
+    bubble.fillStyle(0xffffff, 0.95)
+    bubble.lineStyle(2, 0x3d3d3d, 1)
+    bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+    bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+
+    bubble.fillStyle(0xffffff, 1)
+    bubble.fillTriangle(-8, -1, 8, -1, 0, tailHeight)
+    bubble.lineStyle(2, 0x3d3d3d, 1)
+    bubble.lineBetween(-8, 0, 0, tailHeight)
+    bubble.lineBetween(8, 0, 0, tailHeight)
+
+    text.setPosition(0, -padding)
+
+    this.npcBubble.add([bubble, text])
+
+    // Fade in
+    this.tweens.add({
+      targets: this.npcBubble,
+      alpha: 1,
+      duration: 150,
+    })
+
+    // Auto-dismiss after a few seconds
+    this.time.delayedCall(3000, () => {
+      if (this.npcBubble) {
+        this.tweens.add({
+          targets: this.npcBubble,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => {
+            this.npcBubble?.destroy()
+            this.npcBubble = null
+          }
+        })
+      }
+    })
   }
 
   // 60x36 collision grid: . = walkable, # = blocked
