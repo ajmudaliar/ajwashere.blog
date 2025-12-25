@@ -149,6 +149,8 @@ export class IslandScene extends Phaser.Scene {
   private musicStarted = false
   private fireflies: Phaser.GameObjects.Container[] = []
   private leaves: Phaser.GameObjects.Container[] = []
+  private catIdle!: Phaser.GameObjects.Sprite
+  private catBox!: Phaser.GameObjects.Sprite
 
   constructor() {
     super({ key: 'IslandScene' })
@@ -304,6 +306,16 @@ export class IslandScene extends Phaser.Scene {
 
     // Music
     this.load.audio('bgMusic', '/assets/game/music/lofi-bg.mp3')
+
+    // Cat sprites
+    this.load.spritesheet('cat_idle', '/assets/game/sprites/cat_idle.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    })
+    this.load.spritesheet('cat_box', '/assets/game/sprites/cat_box.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    })
   }
 
   create() {
@@ -396,12 +408,27 @@ export class IslandScene extends Phaser.Scene {
     this.player.setDepth(spawnY) // Initial depth based on Y
 
     // Add NPC (me) standing near the red house
-    const npcX = 6 * 16 + 8
-    const npcY = 26 * 16 + 8
+    const npcX = 6 * 16 + 12
+    const npcY = 26 * 16 + 16
     this.npc = this.add.sprite(npcX, npcY, 'character_idle')
     this.npc.play('idle_right')
     this.npc.setScale(1)
     this.npc.setDepth(npcY)
+
+    // Add cats (tile-based positions - 16px per tile, +8 centers in tile)
+    const catIdleX = 30 * 16      // tile 30
+    const catIdleY = 5 * 16 - 2   // tile ~5
+    this.catIdle = this.add.sprite(catIdleX, catIdleY, 'cat_idle')
+    this.catIdle.play('cat_idle_anim')
+    this.catIdle.setScale(0.8)
+    this.catIdle.setDepth(catIdleY)
+
+    const catBoxX = 34 * 16       // tile 34
+    const catBoxY = 3 * 16        // tile 3
+    this.catBox = this.add.sprite(catBoxX, catBoxY, 'cat_box')
+    this.catBox.play('cat_box_anim')
+    this.catBox.setScale(0.8)
+    this.catBox.setDepth(catBoxY)
 
     // Create "About me" marker above NPC
     this.createNpcMarker(npcX, npcY)
@@ -678,6 +705,9 @@ export class IslandScene extends Phaser.Scene {
     const tailHeight = 10
 
     const redrawBubble = () => {
+      // Check if objects still exist before drawing
+      if (!textObj || !bubble || !textObj.active || !bubble.active) return
+
       const bubbleWidth = Math.max(textObj.width + padding * 2, 40)
       const bubbleHeight = textObj.height + padding * 2
 
@@ -696,6 +726,9 @@ export class IslandScene extends Phaser.Scene {
     }
 
     const typeNextChar = () => {
+      // Stop if objects have been destroyed
+      if (!textObj || !bubble || !textObj.active || !bubble.active) return
+
       if (currentIndex < fullMessage.length) {
         currentIndex++
         textObj.setText(fullMessage.substring(0, currentIndex))
@@ -792,6 +825,21 @@ export class IslandScene extends Phaser.Scene {
         repeat: -1
       })
     }
+
+    // Cat animations
+    this.anims.create({
+      key: 'cat_idle_anim',
+      frames: this.anims.generateFrameNumbers('cat_idle', { start: 0, end: 9 }),
+      frameRate: 6,
+      repeat: -1
+    })
+
+    this.anims.create({
+      key: 'cat_box_anim',
+      frames: this.anims.generateFrameNumbers('cat_box', { start: 0, end: 3 }),
+      frameRate: 4,
+      repeat: -1
+    })
   }
 
   private createBuildingMarkers(buildings: { x: number; y: number; height: number; key: string }[]) {
@@ -1020,6 +1068,14 @@ export class IslandScene extends Phaser.Scene {
 
     // Check if player entered the adventure zone (bottom right)
     this.checkAdventureZone()
+
+    // Check if player entered the cat zone (top center)
+    this.checkCatZone()
+
+    // Update cat zone bubble position to follow player
+    if (this.catZoneBubble) {
+      this.catZoneBubble.setPosition(this.player.x, this.player.y - 30)
+    }
   }
 
   private checkAdventureZone() {
@@ -1041,6 +1097,78 @@ export class IslandScene extends Phaser.Scene {
         this.adventureBubble = null
       }
     }
+  }
+
+  private checkCatZone() {
+    // Cat zone around tiles (30-35, 3-6) - top center area
+    const inCatZone = this.player.x > 28 * 16 && this.player.x < 37 * 16 &&
+                      this.player.y > 2 * 16 && this.player.y < 8 * 16
+
+    if (inCatZone && !this.catZoneTriggered && !this.catZoneBubble) {
+      this.catZoneTriggered = true
+      this.catZoneDialogueIndex = 0
+      this.showNextCatDialogue()
+    } else if (!inCatZone && this.catZoneTriggered) {
+      // Reset when player leaves the zone
+      this.catZoneTriggered = false
+      if (this.catZoneBubble) {
+        this.catZoneBubble.destroy()
+        this.catZoneBubble = null
+      }
+    }
+  }
+
+  private showNextCatDialogue() {
+    // Clean up previous bubble
+    if (this.catZoneBubble) {
+      this.catZoneBubble.destroy()
+      this.catZoneBubble = null
+    }
+
+    // Check if we're done with all dialogues
+    if (this.catZoneDialogueIndex >= this.catZoneDialogues.length) {
+      return
+    }
+
+    const message = this.catZoneDialogues[this.catZoneDialogueIndex]
+
+    // Create bubble above player
+    this.catZoneBubble = this.add.container(this.player.x, this.player.y - 30)
+    this.catZoneBubble.setDepth(30000)
+    this.catZoneBubble.setAlpha(0)
+
+    const padding = 8
+
+    const text = this.add.text(0, -padding, '', {
+      fontSize: '7px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
+      align: 'center',
+      lineSpacing: 4,
+      resolution: 4,
+    })
+    text.setOrigin(0.5, 1)
+
+    const bubble = this.add.graphics()
+    this.catZoneBubble.add([bubble, text])
+
+    // Fade in
+    this.tweens.add({
+      targets: this.catZoneBubble,
+      alpha: 1,
+      duration: 150,
+    })
+
+    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
+
+    // Auto-advance to next dialogue
+    const readingDelay = Math.max(1500, message.split(/\s+/).length * 300)
+    const totalDelay = 150 + typingDuration + readingDelay
+
+    this.time.delayedCall(totalDelay, () => {
+      this.catZoneDialogueIndex++
+      this.showNextCatDialogue()
+    })
   }
 
   private showNextAdventureDialogue() {
@@ -1175,6 +1303,17 @@ export class IslandScene extends Phaser.Scene {
   private adventureDialogueIndex = 0
   private adventureBubble: Phaser.GameObjects.Container | null = null
   private adventureTriggered = false
+
+  // Cat zone dialogues (auto-triggered)
+  private catZoneDialogues = [
+    "Oh, my cats!",
+    "That's Eevee in the box.\nNamed after the Pokémon.",
+    "And that's Eden.\nNamed after a musician\nI really like.",
+    "Best coworkers ever.\nZero productivity though.",
+  ]
+  private catZoneDialogueIndex = 0
+  private catZoneBubble: Phaser.GameObjects.Container | null = null
+  private catZoneTriggered = false
 
   private showNpcReply() {
     // Clean up previous bubble
