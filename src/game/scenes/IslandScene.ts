@@ -129,6 +129,188 @@ const INTERACTIVE_BUILDINGS: Record<string, { label: string; section: string; of
   'obj_bulletinboard_2': { label: 'Blog', section: 'blog', offsetY: 10 },
 }
 
+// Dialogue zones config (bounds in tiles, multiply by 16 for pixels)
+const DIALOGUE_ZONES_CONFIG = {
+  adventure: {
+    bounds: { x1: 50, y1: 24, x2: 60, y2: 36 },  // bottom right corner
+    messages: [
+      "Hmm...",
+      "I wonder what awaits\nfor me next...",
+      "The path continues,\nbut that's a story\nfor another day.",
+    ],
+  },
+  cats: {
+    bounds: { x1: 28, y1: 2, x2: 37, y2: 8 },  // top center
+    messages: [
+      "Oh, my cats!",
+      "That's Eevee in the box.\nNamed after the Pokémon.",
+      "And that's Eden.\nNamed after a musician\nI really like.",
+      "Best coworkers ever.\nZero productivity though.",
+    ],
+  },
+}
+
+// Reusable dialogue zone system
+interface DialogueZoneConfig {
+  bounds: { x1: number; y1: number; x2: number; y2: number }  // in pixels
+  messages: string[]
+}
+
+class DialogueZone {
+  private scene: Phaser.Scene
+  private bounds: DialogueZoneConfig['bounds']
+  private messages: string[]
+  private triggered = false
+  private dialogueIndex = 0
+  private bubble: Phaser.GameObjects.Container | null = null
+  private timer: Phaser.Time.TimerEvent | null = null
+  private getPlayerPos: () => { x: number; y: number }
+
+  constructor(
+    scene: Phaser.Scene,
+    config: DialogueZoneConfig,
+    getPlayerPos: () => { x: number; y: number }
+  ) {
+    this.scene = scene
+    this.bounds = config.bounds
+    this.messages = config.messages
+    this.getPlayerPos = getPlayerPos
+  }
+
+  update(): void {
+    const player = this.getPlayerPos()
+    const inZone = player.x > this.bounds.x1 && player.x < this.bounds.x2 &&
+                   player.y > this.bounds.y1 && player.y < this.bounds.y2
+
+    if (inZone && !this.triggered && !this.bubble) {
+      this.triggered = true
+      this.dialogueIndex = 0
+      this.showNextDialogue()
+    } else if (!inZone && this.triggered) {
+      this.reset()
+    }
+
+    // Update bubble position to follow player
+    if (this.bubble) {
+      this.bubble.setPosition(player.x, player.y - 30)
+    }
+  }
+
+  private reset(): void {
+    this.triggered = false
+    if (this.timer) {
+      this.timer.destroy()
+      this.timer = null
+    }
+    if (this.bubble) {
+      this.bubble.destroy()
+      this.bubble = null
+    }
+  }
+
+  private showNextDialogue(): void {
+    // Clean up previous bubble
+    if (this.bubble) {
+      this.bubble.destroy()
+      this.bubble = null
+    }
+
+    // Check if we're done
+    if (this.dialogueIndex >= this.messages.length) {
+      return
+    }
+
+    const message = this.messages[this.dialogueIndex]
+    const player = this.getPlayerPos()
+
+    // Create bubble above player
+    const container = this.scene.add.container(player.x, player.y - 30)
+    container.setDepth(30000)
+    container.setAlpha(0)
+    this.bubble = container
+
+    const padding = 8
+
+    const text = this.scene.add.text(0, -padding, '', {
+      fontSize: '7px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
+      align: 'center',
+      lineSpacing: 4,
+      resolution: 4,
+    })
+    text.setOrigin(0.5, 1)
+
+    const bubble = this.scene.add.graphics()
+    container.add([bubble, text])
+
+    // Fade in
+    this.scene.tweens.add({
+      targets: this.bubble,
+      alpha: 1,
+      duration: 150,
+    })
+
+    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
+
+    // Auto-advance to next dialogue
+    const readingDelay = Math.max(1500, message.split(/\s+/).length * 300)
+    const totalDelay = 150 + typingDuration + readingDelay
+
+    this.timer = this.scene.time.delayedCall(totalDelay, () => {
+      this.dialogueIndex++
+      this.showNextDialogue()
+    })
+  }
+
+  private typewriterEffect(
+    textObj: Phaser.GameObjects.Text,
+    fullMessage: string,
+    bubble: Phaser.GameObjects.Graphics,
+    padding: number
+  ): number {
+    const charDelay = 30
+    let currentIndex = 0
+    const tailHeight = 10
+
+    const redrawBubble = () => {
+      if (!textObj || !bubble || !textObj.active || !bubble.active) return
+
+      const bubbleWidth = Math.max(textObj.width + padding * 2, 40)
+      const bubbleHeight = textObj.height + padding * 2
+
+      bubble.clear()
+      bubble.fillStyle(0xffffff, 0.95)
+      bubble.lineStyle(2, 0x3d3d3d, 1)
+      bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+      bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+
+      bubble.fillStyle(0xffffff, 1)
+      bubble.fillTriangle(-6, -1, 6, -1, 0, tailHeight)
+      bubble.lineStyle(2, 0x3d3d3d, 1)
+      bubble.lineBetween(-6, 0, 0, tailHeight)
+      bubble.lineBetween(6, 0, 0, tailHeight)
+    }
+
+    const typeNextChar = () => {
+      if (!textObj || !bubble || !textObj.active || !bubble.active) return
+
+      if (currentIndex < fullMessage.length) {
+        currentIndex++
+        textObj.setText(fullMessage.substring(0, currentIndex))
+        redrawBubble()
+        this.scene.time.delayedCall(charDelay, typeNextChar)
+      }
+    }
+
+    textObj.setText('')
+    redrawBubble()
+    typeNextChar()
+
+    return fullMessage.length * charDelay
+  }
+}
+
 export class IslandScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Sprite
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
@@ -151,6 +333,7 @@ export class IslandScene extends Phaser.Scene {
   private leaves: Phaser.GameObjects.Container[] = []
   private catIdle!: Phaser.GameObjects.Sprite
   private catBox!: Phaser.GameObjects.Sprite
+  private dialogueZones: DialogueZone[] = []
 
   constructor() {
     super({ key: 'IslandScene' })
@@ -528,6 +711,25 @@ export class IslandScene extends Phaser.Scene {
 
     // Listen for logo click from UI
     window.addEventListener('logoClicked', () => this.showLogoReply())
+
+    // Create dialogue zones
+    const getPlayerPos = () => ({ x: this.player.x, y: this.player.y })
+    for (const [, config] of Object.entries(DIALOGUE_ZONES_CONFIG)) {
+      const zone = new DialogueZone(
+        this,
+        {
+          bounds: {
+            x1: config.bounds.x1 * 16,
+            y1: config.bounds.y1 * 16,
+            x2: config.bounds.x2 * 16,
+            y2: config.bounds.y2 * 16,
+          },
+          messages: config.messages,
+        },
+        getPlayerPos
+      )
+      this.dialogueZones.push(zone)
+    }
   }
 
   private startMusic() {
@@ -1058,171 +1260,13 @@ export class IslandScene extends Phaser.Scene {
       this.playerBubble.setPosition(this.player.x, this.player.y - 30)
     }
 
-    // Update adventure bubble position to follow player
-    if (this.adventureBubble) {
-      this.adventureBubble.setPosition(this.player.x, this.player.y - 30)
-    }
-
     // Check proximity to interactive buildings
     this.checkBuildingProximity()
 
-    // Check if player entered the adventure zone (bottom right)
-    this.checkAdventureZone()
-
-    // Check if player entered the cat zone (top center)
-    this.checkCatZone()
-
-    // Update cat zone bubble position to follow player
-    if (this.catZoneBubble) {
-      this.catZoneBubble.setPosition(this.player.x, this.player.y - 30)
+    // Update all dialogue zones
+    for (const zone of this.dialogueZones) {
+      zone.update()
     }
-  }
-
-  private checkAdventureZone() {
-    const mapWidth = this.map.widthInPixels || 960
-    const mapHeight = this.map.heightInPixels || 576
-
-    // Larger bottom right area
-    const inAdventureZone = this.player.x > mapWidth - 250 && this.player.y > mapHeight - 200
-
-    if (inAdventureZone && !this.adventureTriggered && !this.adventureBubble) {
-      this.adventureTriggered = true
-      this.adventureDialogueIndex = 0
-      this.showNextAdventureDialogue()
-    } else if (!inAdventureZone && this.adventureTriggered) {
-      // Reset when player leaves the zone
-      this.adventureTriggered = false
-      if (this.adventureBubble) {
-        this.adventureBubble.destroy()
-        this.adventureBubble = null
-      }
-    }
-  }
-
-  private checkCatZone() {
-    // Cat zone around tiles (30-35, 3-6) - top center area
-    const inCatZone = this.player.x > 28 * 16 && this.player.x < 37 * 16 &&
-                      this.player.y > 2 * 16 && this.player.y < 8 * 16
-
-    if (inCatZone && !this.catZoneTriggered && !this.catZoneBubble) {
-      this.catZoneTriggered = true
-      this.catZoneDialogueIndex = 0
-      this.showNextCatDialogue()
-    } else if (!inCatZone && this.catZoneTriggered) {
-      // Reset when player leaves the zone
-      this.catZoneTriggered = false
-      if (this.catZoneBubble) {
-        this.catZoneBubble.destroy()
-        this.catZoneBubble = null
-      }
-    }
-  }
-
-  private showNextCatDialogue() {
-    // Clean up previous bubble
-    if (this.catZoneBubble) {
-      this.catZoneBubble.destroy()
-      this.catZoneBubble = null
-    }
-
-    // Check if we're done with all dialogues
-    if (this.catZoneDialogueIndex >= this.catZoneDialogues.length) {
-      return
-    }
-
-    const message = this.catZoneDialogues[this.catZoneDialogueIndex]
-
-    // Create bubble above player
-    this.catZoneBubble = this.add.container(this.player.x, this.player.y - 30)
-    this.catZoneBubble.setDepth(30000)
-    this.catZoneBubble.setAlpha(0)
-
-    const padding = 8
-
-    const text = this.add.text(0, -padding, '', {
-      fontSize: '7px',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: '#2d2d2d',
-      align: 'center',
-      lineSpacing: 4,
-      resolution: 4,
-    })
-    text.setOrigin(0.5, 1)
-
-    const bubble = this.add.graphics()
-    this.catZoneBubble.add([bubble, text])
-
-    // Fade in
-    this.tweens.add({
-      targets: this.catZoneBubble,
-      alpha: 1,
-      duration: 150,
-    })
-
-    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
-
-    // Auto-advance to next dialogue
-    const readingDelay = Math.max(1500, message.split(/\s+/).length * 300)
-    const totalDelay = 150 + typingDuration + readingDelay
-
-    this.time.delayedCall(totalDelay, () => {
-      this.catZoneDialogueIndex++
-      this.showNextCatDialogue()
-    })
-  }
-
-  private showNextAdventureDialogue() {
-    // Clean up previous bubble
-    if (this.adventureBubble) {
-      this.adventureBubble.destroy()
-      this.adventureBubble = null
-    }
-
-    // Check if we're done with all dialogues
-    if (this.adventureDialogueIndex >= this.adventureDialogues.length) {
-      // Reset for next time player enters zone (after they leave)
-      return
-    }
-
-    const message = this.adventureDialogues[this.adventureDialogueIndex]
-
-    // Create bubble above player
-    this.adventureBubble = this.add.container(this.player.x, this.player.y - 30)
-    this.adventureBubble.setDepth(30000)
-    this.adventureBubble.setAlpha(0)
-
-    const padding = 8
-
-    const text = this.add.text(0, -padding, '', {
-      fontSize: '7px',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: '#2d2d2d',
-      align: 'center',
-      lineSpacing: 4,
-      resolution: 4,
-    })
-    text.setOrigin(0.5, 1)
-
-    const bubble = this.add.graphics()
-    this.adventureBubble.add([bubble, text])
-
-    // Fade in
-    this.tweens.add({
-      targets: this.adventureBubble,
-      alpha: 1,
-      duration: 150,
-    })
-
-    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
-
-    // Auto-advance to next dialogue
-    const readingDelay = Math.max(1500, message.split(/\s+/).length * 300)
-    const totalDelay = 150 + typingDuration + readingDelay
-
-    this.time.delayedCall(totalDelay, () => {
-      this.adventureDialogueIndex++
-      this.showNextAdventureDialogue()
-    })
   }
 
   private checkBuildingProximity() {
@@ -1294,26 +1338,6 @@ export class IslandScene extends Phaser.Scene {
     "Welcome to my corner!",
   ]
   private lastLogoReplyIndex = -1
-
-  private adventureDialogues = [
-    "Hmm...",
-    "I wonder what awaits\nfor me next...",
-    "The path continues,\nbut that's a story\nfor another day.",
-  ]
-  private adventureDialogueIndex = 0
-  private adventureBubble: Phaser.GameObjects.Container | null = null
-  private adventureTriggered = false
-
-  // Cat zone dialogues (auto-triggered)
-  private catZoneDialogues = [
-    "Oh, my cats!",
-    "That's Eevee in the box.\nNamed after the Pokémon.",
-    "And that's Eden.\nNamed after a musician\nI really like.",
-    "Best coworkers ever.\nZero productivity though.",
-  ]
-  private catZoneDialogueIndex = 0
-  private catZoneBubble: Phaser.GameObjects.Container | null = null
-  private catZoneTriggered = false
 
   private showNpcReply() {
     // Clean up previous bubble
@@ -1524,6 +1548,7 @@ export class IslandScene extends Phaser.Scene {
 
       this.debugOverlay.clear()
 
+      // Draw collision tiles
       for (let y = 0; y < this.mapHeightTiles; y++) {
         for (let x = 0; x < this.mapWidthTiles; x++) {
           const walkable = this.collisionMap[y]?.[x]
@@ -1532,7 +1557,18 @@ export class IslandScene extends Phaser.Scene {
           this.debugOverlay.fillRect(x * 16, y * 16, 16, 16)
         }
       }
-      console.log('Collision debug ON - red=blocked, green=walkable')
+
+      // Draw dialogue zone boundaries (iterates over DIALOGUE_ZONES_CONFIG)
+      const zoneColors = [0x00ffff, 0xff00ff, 0xffff00, 0x00ffff]  // cyan, magenta, yellow...
+      let colorIndex = 0
+      for (const [, config] of Object.entries(DIALOGUE_ZONES_CONFIG)) {
+        const b = config.bounds
+        this.debugOverlay.lineStyle(3, zoneColors[colorIndex % zoneColors.length], 1)
+        this.debugOverlay.strokeRect(b.x1 * 16, b.y1 * 16, (b.x2 - b.x1) * 16, (b.y2 - b.y1) * 16)
+        colorIndex++
+      }
+
+      console.log('Collision debug ON - red=blocked, green=walkable, colored outlines=dialogue zones')
     } else {
       this.debugOverlay?.clear()
       console.log('Collision debug OFF')
