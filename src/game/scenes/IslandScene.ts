@@ -337,9 +337,9 @@ export class IslandScene extends Phaser.Scene {
     // Create animations
     this.createAnimations()
 
-    // Spawn player on the road (left side of map where buildings are)
-    const spawnX = 200
-    const spawnY = 300
+    // Spawn player at tile (23, 23) - center of island
+    const spawnX = 21 * 16 + 8  // +8 to center in tile
+    const spawnY = 22 * 16 + 8
     this.player = this.add.sprite(spawnX, spawnY, 'character_idle')
     this.player.play('idle_down')
     this.player.setScale(1) // Native size for 16px tile map
@@ -350,7 +350,7 @@ export class IslandScene extends Phaser.Scene {
     const mapHeight = this.map.heightInPixels || 576
     const scaleX = this.scale.width / mapWidth
     const scaleY = this.scale.height / mapHeight
-    const zoom = Math.max(scaleX, scaleY) // Fill the screen
+    const zoom = Math.max(scaleX, scaleY) * 1.2 // Fill the screen + 20% zoom
     this.cameras.main.setZoom(zoom)
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
     this.cameras.main.setBounds(0, 0, mapWidth, mapHeight)
@@ -449,7 +449,7 @@ export class IslandScene extends Phaser.Scene {
     '###########....##########...#.......##............#........#', // y=8
     '###########....####.........#.......##............#......###', // y=9
     '###########.................####....#............##.....####', // y=10
-    '########....................####....#............#......####', // y=11
+    '########....................####..###............#......####', // y=11
     '########.......................#....##############.....#####', // y=12
     '########...............................................#####', // y=13
     '########.......#...#...................................#####', // y=14
