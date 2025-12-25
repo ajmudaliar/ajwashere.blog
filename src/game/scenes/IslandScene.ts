@@ -1010,8 +1010,91 @@ export class IslandScene extends Phaser.Scene {
       this.playerBubble.setPosition(this.player.x, this.player.y - 30)
     }
 
+    // Update adventure bubble position to follow player
+    if (this.adventureBubble) {
+      this.adventureBubble.setPosition(this.player.x, this.player.y - 30)
+    }
+
     // Check proximity to interactive buildings
     this.checkBuildingProximity()
+
+    // Check if player entered the adventure zone (bottom right)
+    this.checkAdventureZone()
+  }
+
+  private checkAdventureZone() {
+    const mapWidth = this.map.widthInPixels || 960
+    const mapHeight = this.map.heightInPixels || 576
+
+    // Larger bottom right area
+    const inAdventureZone = this.player.x > mapWidth - 250 && this.player.y > mapHeight - 200
+
+    if (inAdventureZone && !this.adventureTriggered && !this.adventureBubble) {
+      this.adventureTriggered = true
+      this.adventureDialogueIndex = 0
+      this.showNextAdventureDialogue()
+    } else if (!inAdventureZone && this.adventureTriggered) {
+      // Reset when player leaves the zone
+      this.adventureTriggered = false
+      if (this.adventureBubble) {
+        this.adventureBubble.destroy()
+        this.adventureBubble = null
+      }
+    }
+  }
+
+  private showNextAdventureDialogue() {
+    // Clean up previous bubble
+    if (this.adventureBubble) {
+      this.adventureBubble.destroy()
+      this.adventureBubble = null
+    }
+
+    // Check if we're done with all dialogues
+    if (this.adventureDialogueIndex >= this.adventureDialogues.length) {
+      // Reset for next time player enters zone (after they leave)
+      return
+    }
+
+    const message = this.adventureDialogues[this.adventureDialogueIndex]
+
+    // Create bubble above player
+    this.adventureBubble = this.add.container(this.player.x, this.player.y - 30)
+    this.adventureBubble.setDepth(30000)
+    this.adventureBubble.setAlpha(0)
+
+    const padding = 8
+
+    const text = this.add.text(0, -padding, '', {
+      fontSize: '7px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
+      align: 'center',
+      lineSpacing: 4,
+      resolution: 4,
+    })
+    text.setOrigin(0.5, 1)
+
+    const bubble = this.add.graphics()
+    this.adventureBubble.add([bubble, text])
+
+    // Fade in
+    this.tweens.add({
+      targets: this.adventureBubble,
+      alpha: 1,
+      duration: 150,
+    })
+
+    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
+
+    // Auto-advance to next dialogue
+    const readingDelay = Math.max(1500, message.split(/\s+/).length * 300)
+    const totalDelay = 150 + typingDuration + readingDelay
+
+    this.time.delayedCall(totalDelay, () => {
+      this.adventureDialogueIndex++
+      this.showNextAdventureDialogue()
+    })
   }
 
   private checkBuildingProximity() {
@@ -1083,6 +1166,15 @@ export class IslandScene extends Phaser.Scene {
     "Welcome to my corner!",
   ]
   private lastLogoReplyIndex = -1
+
+  private adventureDialogues = [
+    "Hmm...",
+    "I wonder what awaits\nfor me next...",
+    "The path continues,\nbut that's a story\nfor another day.",
+  ]
+  private adventureDialogueIndex = 0
+  private adventureBubble: Phaser.GameObjects.Container | null = null
+  private adventureTriggered = false
 
   private showNpcReply() {
     // Clean up previous bubble
