@@ -142,6 +142,12 @@ export class IslandScene extends Phaser.Scene {
   private interactKey!: Phaser.Input.Keyboard.Key
   private npc!: Phaser.GameObjects.Sprite
   private npcBubble: Phaser.GameObjects.Container | null = null
+  private fadeOverlay!: Phaser.GameObjects.Rectangle
+  private isTransitioning = false
+  private bgMusic!: Phaser.Sound.BaseSound
+  private musicStarted = false
+  private fireflies: Phaser.GameObjects.Container[] = []
+  private leaves: Phaser.GameObjects.Container[] = []
 
   constructor() {
     super({ key: 'IslandScene' })
@@ -294,6 +300,9 @@ export class IslandScene extends Phaser.Scene {
     this.load.image('obj_rock_gray_water_5', '/assets/game/rocks/Rock_Gray_Water_5.png')
     this.load.image('obj_rock_gray_water_3', '/assets/game/rocks/Rock_Gray_Water_3.png')
     this.load.image('obj_rock_gray_grass_11', '/assets/game/rocks/Rock_Gray_Grass_11.png')
+
+    // Music
+    this.load.audio('bgMusic', '/assets/game/music/lofi-bg.mp3')
   }
 
   create() {
@@ -371,9 +380,15 @@ export class IslandScene extends Phaser.Scene {
     // Create animations
     this.createAnimations()
 
-    // Spawn player at tile (23, 23) - center of island
-    const spawnX = 17 * 16 + 8  // +8 to center in tile
-    const spawnY = 15 * 16 + 8
+    // Spawn player - restore saved position or use default
+    const savedPos = sessionStorage.getItem('playerPosition')
+    let spawnX = 17 * 16 + 8  // +8 to center in tile
+    let spawnY = 15 * 16 + 8
+    if (savedPos) {
+      const pos = JSON.parse(savedPos)
+      spawnX = pos.x
+      spawnY = pos.y
+    }
     this.player = this.add.sprite(spawnX, spawnY, 'character_idle')
     this.player.play('idle_down')
     this.player.setScale(1) // Native size for 16px tile map
@@ -437,8 +452,193 @@ export class IslandScene extends Phaser.Scene {
     this.interactPrompt.setDepth(20001)
     this.interactPrompt.setVisible(false)
 
-    // Show welcome bubble on spawn
-    this.showWelcomeBubble()
+    // Show welcome bubble on spawn (only if not seen before)
+    if (!sessionStorage.getItem('welcomeSeen')) {
+      this.showWelcomeBubble()
+    }
+
+    // Create fade overlay for transitions (covers entire screen, starts solid black)
+    this.fadeOverlay = this.add.rectangle(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      this.cameras.main.width * 2,
+      this.cameras.main.height * 2,
+      0x000000
+    )
+    this.fadeOverlay.setScrollFactor(0) // Fixed to camera
+    this.fadeOverlay.setDepth(50000) // Above everything
+    this.fadeOverlay.setAlpha(1) // Start solid black
+
+    // Fade in from black on scene start
+    this.tweens.add({
+      targets: this.fadeOverlay,
+      alpha: 0,
+      duration: 400,
+      ease: 'Power2'
+    })
+
+    // Setup background music (starts on first interaction due to browser autoplay policy)
+    this.bgMusic = this.sound.add('bgMusic', { loop: true, volume: 0.3 })
+
+    // Start music on first interaction
+    this.input.once('pointerdown', () => this.startMusic())
+    this.input.keyboard!.once('keydown', () => this.startMusic())
+
+    // Add particle effects (fireflies + falling leaves)
+    this.createParticleEffects()
+
+    // Listen for logo click from UI
+    window.addEventListener('logoClicked', () => this.showLogoReply())
+  }
+
+  private startMusic() {
+    if (!this.musicStarted) {
+      this.musicStarted = true
+      this.bgMusic.play()
+    }
+  }
+
+  private createParticleEffects() {
+    // Create fireflies
+    this.createFireflies(25)
+
+    // Create falling leaves
+    this.createFallingLeaves()
+  }
+
+  private createFireflies(count: number) {
+    const mapWidth = this.map.widthInPixels
+    const mapHeight = this.map.heightInPixels
+
+    for (let i = 0; i < count; i++) {
+      // Random position on the island (avoid water edges)
+      const x = 100 + Math.random() * (mapWidth - 200)
+      const y = 100 + Math.random() * (mapHeight - 200)
+
+      // Create firefly glow
+      const firefly = this.add.container(x, y)
+
+      // Outer glow
+      const glow = this.add.circle(0, 0, 4, 0xffff88, 0.3)
+      // Inner bright core
+      const core = this.add.circle(0, 0, 1.5, 0xffffcc, 0.8)
+
+      firefly.add([glow, core])
+      firefly.setDepth(15000)
+      firefly.setAlpha(0)
+
+      this.fireflies.push(firefly)
+
+      // Animate firefly
+      this.animateFirefly(firefly, i)
+    }
+  }
+
+  private animateFirefly(firefly: Phaser.GameObjects.Container, index: number) {
+    const startDelay = index * 200 + Math.random() * 1000
+
+    // Pulse glow (fade in and out)
+    this.tweens.add({
+      targets: firefly,
+      alpha: { from: 0, to: 0.8 },
+      duration: 1500 + Math.random() * 1000,
+      yoyo: true,
+      repeat: -1,
+      delay: startDelay,
+      ease: 'Sine.easeInOut'
+    })
+
+    // Drift movement
+    const driftFirefly = () => {
+      const newX = firefly.x + (Math.random() - 0.5) * 40
+      const newY = firefly.y + (Math.random() - 0.5) * 30
+
+      this.tweens.add({
+        targets: firefly,
+        x: Phaser.Math.Clamp(newX, 50, (this.map.widthInPixels || 960) - 50),
+        y: Phaser.Math.Clamp(newY, 50, (this.map.heightInPixels || 576) - 50),
+        duration: 3000 + Math.random() * 2000,
+        ease: 'Sine.easeInOut',
+        onComplete: () => driftFirefly()
+      })
+    }
+
+    this.time.delayedCall(startDelay, driftFirefly)
+  }
+
+  private createFallingLeaves() {
+    // Spawn leaves periodically
+    this.time.addEvent({
+      delay: 800,
+      callback: () => this.spawnLeaf(),
+      loop: true
+    })
+
+    // Spawn a few initial leaves
+    for (let i = 0; i < 5; i++) {
+      this.time.delayedCall(i * 150, () => this.spawnLeaf())
+    }
+  }
+
+  private spawnLeaf() {
+    const mapWidth = this.map.widthInPixels || 960
+    const mapHeight = this.map.heightInPixels || 576
+
+    // Random X position
+    const startX = 50 + Math.random() * (mapWidth - 100)
+    const startY = -10
+
+    // Create leaf
+    const leaf = this.add.container(startX, startY)
+
+    // Simple leaf shape using graphics
+    const leafGraphics = this.add.graphics()
+    const leafColor = Phaser.Utils.Array.GetRandom([0x4a7c3f, 0x5d8a4a, 0x6b9a56, 0x8b6b3d, 0xa67c4a])
+    leafGraphics.fillStyle(leafColor, 0.7)
+    leafGraphics.fillEllipse(0, 0, 4, 6)
+
+    leaf.add(leafGraphics)
+    leaf.setDepth(14000)
+    leaf.setScale(0.8 + Math.random() * 0.4)
+
+    this.leaves.push(leaf)
+
+    // Animate falling with sway
+    const fallDuration = 8000 + Math.random() * 4000
+    const endY = mapHeight + 20
+    const swayAmount = 30 + Math.random() * 20
+
+    // Vertical fall
+    this.tweens.add({
+      targets: leaf,
+      y: endY,
+      duration: fallDuration,
+      ease: 'Linear',
+      onComplete: () => {
+        leaf.destroy()
+        const idx = this.leaves.indexOf(leaf)
+        if (idx > -1) this.leaves.splice(idx, 1)
+      }
+    })
+
+    // Horizontal sway
+    this.tweens.add({
+      targets: leaf,
+      x: startX + swayAmount,
+      duration: 1500 + Math.random() * 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
+
+    // Rotation
+    this.tweens.add({
+      targets: leaf,
+      angle: 360,
+      duration: 3000 + Math.random() * 2000,
+      repeat: -1,
+      ease: 'Linear'
+    })
   }
 
   private welcomeBubble: Phaser.GameObjects.Container | null = null
@@ -454,6 +654,53 @@ export class IslandScene extends Phaser.Scene {
     this.showNextMessage()
   }
 
+  private typewriterEffect(
+    textObj: Phaser.GameObjects.Text,
+    fullMessage: string,
+    bubble: Phaser.GameObjects.Graphics,
+    padding: number,
+    onComplete?: () => void
+  ) {
+    const charDelay = 30 // ms per character
+    let currentIndex = 0
+    const tailHeight = 10
+
+    const redrawBubble = () => {
+      const bubbleWidth = Math.max(textObj.width + padding * 2, 40)
+      const bubbleHeight = textObj.height + padding * 2
+
+      bubble.clear()
+      bubble.fillStyle(0xffffff, 0.95)
+      bubble.lineStyle(2, 0x3d3d3d, 1)
+      bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+      bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+
+      // Tail
+      bubble.fillStyle(0xffffff, 1)
+      bubble.fillTriangle(-6, -1, 6, -1, 0, tailHeight)
+      bubble.lineStyle(2, 0x3d3d3d, 1)
+      bubble.lineBetween(-6, 0, 0, tailHeight)
+      bubble.lineBetween(6, 0, 0, tailHeight)
+    }
+
+    const typeNextChar = () => {
+      if (currentIndex < fullMessage.length) {
+        currentIndex++
+        textObj.setText(fullMessage.substring(0, currentIndex))
+        redrawBubble()
+        this.time.delayedCall(charDelay, typeNextChar)
+      } else if (onComplete) {
+        onComplete()
+      }
+    }
+
+    textObj.setText('')
+    redrawBubble() // Draw initial small bubble
+    typeNextChar()
+
+    return fullMessage.length * charDelay // Return total typing duration
+  }
+
   private showNextMessage() {
     // Clean up previous bubble
     if (this.welcomeBubble) {
@@ -463,6 +710,7 @@ export class IslandScene extends Phaser.Scene {
 
     // Check if we're done
     if (this.currentMessageIndex >= this.welcomeMessages.length) {
+      sessionStorage.setItem('welcomeSeen', 'true')
       return
     }
 
@@ -473,39 +721,21 @@ export class IslandScene extends Phaser.Scene {
     this.welcomeBubble.setDepth(30000)
     this.welcomeBubble.setAlpha(0)
 
-    // Create bubble background
-    const padding = 10
-    const text = this.add.text(0, 0, message, {
+    const padding = 8
+
+    // Create text (will be filled by typewriter)
+    const text = this.add.text(0, -padding, '', {
       fontSize: '7px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#3d3d3d',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
       align: 'center',
       lineSpacing: 4,
       resolution: 4,
     })
-    text.setOrigin(0.5, 1) // Anchor at bottom center
+    text.setOrigin(0.5, 1)
 
-    const bubbleWidth = Math.max(text.width + padding * 2, 60)
-    const bubbleHeight = text.height + padding * 2
-    const tailHeight = 10
-
-    // Draw bubble shape (grows upward from bottom)
+    // Create bubble graphics (will be redrawn by typewriter)
     const bubble = this.add.graphics()
-    bubble.fillStyle(0xffffff, 0.95)
-    bubble.lineStyle(2, 0x3d3d3d, 1)
-    bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
-    bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
-
-    // Draw speech bubble tail at bottom (fixed position)
-    bubble.fillStyle(0xffffff, 1)
-    bubble.fillTriangle(-8, -1, 8, -1, 0, tailHeight)
-    // Draw only the outer edges of the tail
-    bubble.lineStyle(2, 0x3d3d3d, 1)
-    bubble.lineBetween(-8, 0, 0, tailHeight)
-    bubble.lineBetween(8, 0, 0, tailHeight)
-
-    // Position text inside bubble
-    text.setPosition(0, -padding)
 
     this.welcomeBubble.add([bubble, text])
 
@@ -516,11 +746,14 @@ export class IslandScene extends Phaser.Scene {
       duration: 150,
     })
 
-    // Auto-advance after delay (longer for longer messages)
-    const wordCount = message.split(/\s+/).length
-    const delay = Math.max(2000, wordCount * 400) // At least 2s, ~400ms per word
+    // Start typewriter effect (bubble grows with text)
+    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
 
-    this.time.delayedCall(delay, () => {
+    // Auto-advance after typing completes + reading time
+    const readingDelay = Math.max(1500, message.split(/\s+/).length * 300)
+    const totalDelay = 150 + typingDuration + readingDelay
+
+    this.time.delayedCall(totalDelay, () => {
       this.currentMessageIndex++
       this.showNextMessage()
     })
@@ -709,6 +942,11 @@ export class IslandScene extends Phaser.Scene {
       this.welcomeBubble.setPosition(this.player.x, this.player.y - 30)
     }
 
+    // Update player bubble position to follow player
+    if (this.playerBubble) {
+      this.playerBubble.setPosition(this.player.x, this.player.y - 30)
+    }
+
     // Check proximity to interactive buildings
     this.checkBuildingProximity()
   }
@@ -735,14 +973,35 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private handleInteraction() {
-    if (this.nearbyBuilding) {
+    if (this.nearbyBuilding && !this.isTransitioning) {
       if (this.nearbyBuilding.section === 'about') {
         this.showNpcReply()
       } else {
-        // Navigate to the section page
-        window.location.href = `/${this.nearbyBuilding.section}`
+        // Fade to black then navigate
+        this.transitionToPage(`/${this.nearbyBuilding.section}`)
       }
     }
+  }
+
+  private transitionToPage(url: string) {
+    this.isTransitioning = true
+
+    // Save player position
+    sessionStorage.setItem('playerPosition', JSON.stringify({
+      x: this.player.x,
+      y: this.player.y
+    }))
+
+    // Fade to black
+    this.tweens.add({
+      targets: this.fadeOverlay,
+      alpha: 1,
+      duration: 400,
+      ease: 'Power2',
+      onComplete: () => {
+        window.location.href = url
+      }
+    })
   }
 
   private npcReplies = [
@@ -752,6 +1011,15 @@ export class IslandScene extends Phaser.Scene {
     "Nice to meet you!",
   ]
   private lastReplyIndex = -1
+
+  private logoReplies = [
+    "That's my site!",
+    "You found the logo!",
+    "Yep, aj was here.",
+    "Thanks for visiting!",
+    "Welcome to my corner!",
+  ]
+  private lastLogoReplyIndex = -1
 
   private showNpcReply() {
     // Clean up previous bubble
@@ -773,34 +1041,21 @@ export class IslandScene extends Phaser.Scene {
     this.npcBubble.setDepth(30000)
     this.npcBubble.setAlpha(0)
 
-    const padding = 10
-    const text = this.add.text(0, 0, message, {
+    const padding = 8
+
+    // Create text (will be filled by typewriter)
+    const text = this.add.text(0, -padding, '', {
       fontSize: '7px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#3d3d3d',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
       align: 'center',
       lineSpacing: 4,
       resolution: 4,
     })
     text.setOrigin(0.5, 1)
 
-    const bubbleWidth = Math.max(text.width + padding * 2, 60)
-    const bubbleHeight = text.height + padding * 2
-    const tailHeight = 10
-
+    // Create bubble graphics (will be redrawn by typewriter)
     const bubble = this.add.graphics()
-    bubble.fillStyle(0xffffff, 0.95)
-    bubble.lineStyle(2, 0x3d3d3d, 1)
-    bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
-    bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
-
-    bubble.fillStyle(0xffffff, 1)
-    bubble.fillTriangle(-8, -1, 8, -1, 0, tailHeight)
-    bubble.lineStyle(2, 0x3d3d3d, 1)
-    bubble.lineBetween(-8, 0, 0, tailHeight)
-    bubble.lineBetween(8, 0, 0, tailHeight)
-
-    text.setPosition(0, -padding)
 
     this.npcBubble.add([bubble, text])
 
@@ -811,8 +1066,12 @@ export class IslandScene extends Phaser.Scene {
       duration: 150,
     })
 
-    // Auto-dismiss after a few seconds
-    this.time.delayedCall(3000, () => {
+    // Start typewriter effect (bubble grows with text)
+    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
+
+    // Auto-dismiss after typing + reading time
+    const dismissDelay = 150 + typingDuration + 2000
+    this.time.delayedCall(dismissDelay, () => {
       if (this.npcBubble) {
         this.tweens.add({
           targets: this.npcBubble,
@@ -821,6 +1080,76 @@ export class IslandScene extends Phaser.Scene {
           onComplete: () => {
             this.npcBubble?.destroy()
             this.npcBubble = null
+          }
+        })
+      }
+    })
+  }
+
+  private playerBubble: Phaser.GameObjects.Container | null = null
+  private playerBubbleDismissTimer: Phaser.Time.TimerEvent | null = null
+
+  private showLogoReply() {
+    // Cancel any pending dismiss timer
+    if (this.playerBubbleDismissTimer) {
+      this.playerBubbleDismissTimer.destroy()
+      this.playerBubbleDismissTimer = null
+    }
+
+    // Clean up previous bubble
+    if (this.playerBubble) {
+      this.playerBubble.destroy()
+      this.playerBubble = null
+    }
+
+    // Cycle through replies in order
+    this.lastLogoReplyIndex = (this.lastLogoReplyIndex + 1) % this.logoReplies.length
+    const message = this.logoReplies[this.lastLogoReplyIndex]
+
+    // Create bubble above player
+    this.playerBubble = this.add.container(this.player.x, this.player.y - 30)
+    this.playerBubble.setDepth(30000)
+    this.playerBubble.setAlpha(0)
+
+    const padding = 8
+
+    // Create text (will be filled by typewriter)
+    const text = this.add.text(0, -padding, '', {
+      fontSize: '7px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
+      align: 'center',
+      lineSpacing: 4,
+      resolution: 4,
+    })
+    text.setOrigin(0.5, 1)
+
+    // Create bubble graphics (will be redrawn by typewriter)
+    const bubble = this.add.graphics()
+
+    this.playerBubble.add([bubble, text])
+
+    // Fade in
+    this.tweens.add({
+      targets: this.playerBubble,
+      alpha: 1,
+      duration: 150,
+    })
+
+    // Start typewriter effect (bubble grows with text)
+    const typingDuration = this.typewriterEffect(text, message, bubble, padding)
+
+    // Auto-dismiss after typing + reading time
+    const dismissDelay = 150 + typingDuration + 2000
+    this.playerBubbleDismissTimer = this.time.delayedCall(dismissDelay, () => {
+      if (this.playerBubble) {
+        this.tweens.add({
+          targets: this.playerBubble,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => {
+            this.playerBubble?.destroy()
+            this.playerBubble = null
           }
         })
       }
