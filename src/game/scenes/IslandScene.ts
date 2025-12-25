@@ -126,7 +126,6 @@ const GID_TO_KEY: Record<number, string> = {
 const INTERACTIVE_BUILDINGS: Record<string, { label: string; section: string; offsetX?: number; offsetY?: number }> = {
   'obj_tower_bluewood_1_3': { label: 'Projects and stuff', section: 'projects', offsetX: 15, offsetY: 160 },
   'obj_marketstand_2_yellow': { label: 'What I\'m reading', section: 'readinglist', offsetY: 30 },
-  'obj_house_redwood_1_4': { label: 'About me', section: 'about', offsetY: 20 },
 }
 
 export class IslandScene extends Phaser.Scene {
@@ -378,6 +377,25 @@ export class IslandScene extends Phaser.Scene {
     this.player.setScale(1) // Native size for 16px tile map
     this.player.setDepth(spawnY) // Initial depth based on Y
 
+    // Add NPC (me) standing near the red house
+    const npcX = 6 * 16 + 8
+    const npcY = 26 * 16 + 8
+    const npc = this.add.sprite(npcX, npcY, 'character_idle')
+    npc.play('idle_right')
+    npc.setScale(1)
+    npc.setDepth(npcY)
+
+    // Create "About me" marker above NPC
+    this.createNpcMarker(npcX, npcY)
+
+    // Add interaction zone at NPC position
+    this.interactiveZones.push({
+      x: npcX,
+      y: npcY,
+      section: 'about',
+      label: 'About me'
+    })
+
     // Camera - zoom to fill screen nicely
     const mapWidth = this.map.widthInPixels || 960
     const mapHeight = this.map.heightInPixels || 576
@@ -587,6 +605,58 @@ export class IslandScene extends Phaser.Scene {
         delay: delay
       })
     }
+  }
+
+  private createNpcMarker(npcX: number, npcY: number) {
+    // Create marker above NPC's head
+    const markerY = npcY - 40 // Above the NPC sprite
+    const container = this.add.container(npcX, markerY)
+    container.setDepth(20000)
+
+    // Create down-pointing arrow using graphics
+    const arrow = this.add.graphics()
+    arrow.fillStyle(0xffdd44, 1) // Golden yellow
+    arrow.lineStyle(2, 0x000000, 0.5) // Dark outline
+
+    // Draw arrow shape (down-pointing triangle with stem)
+    arrow.beginPath()
+    arrow.moveTo(0, 8)      // Bottom point
+    arrow.lineTo(-6, -2)    // Top left
+    arrow.lineTo(-3, -2)    // Inner left
+    arrow.lineTo(-3, -8)    // Stem top left
+    arrow.lineTo(3, -8)     // Stem top right
+    arrow.lineTo(3, -2)     // Inner right
+    arrow.lineTo(6, -2)     // Top right
+    arrow.closePath()
+    arrow.fillPath()
+    arrow.strokePath()
+
+    container.add(arrow)
+
+    // Add text label above the arrow
+    const label = this.add.text(0, -18, 'About me', {
+      fontSize: '8px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+      resolution: 4,
+    })
+    label.setOrigin(0.5, 1)
+    container.add(label)
+
+    this.buildingMarkers.push(container)
+
+    // Add bouncing animation
+    this.tweens.add({
+      targets: container,
+      y: markerY - 6,
+      duration: 500,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+      delay: 400 // Offset from other markers
+    })
   }
 
   update() {
