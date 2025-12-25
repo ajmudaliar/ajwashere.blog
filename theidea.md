@@ -150,30 +150,39 @@ A Pokemon-style overworld as a personal website. Visitors control a sprite, walk
 
 ## Implementation Plan
 
-### Phase 1: Proof of Concept
-- [ ] Phaser 3 running in React
-- [ ] Simple tilemap (hardcoded grass/water/trees)
-- [ ] Character sprite that moves with arrow keys
-- [ ] Camera follows character
-- **Validate:** Can you walk around a basic island?
+### Phase 1: Proof of Concept ✅
+- [x] Phaser 3 running in React
+- [x] Simple tilemap (hardcoded grass/water/trees)
+- [x] Character sprite that moves with arrow keys
+- [x] Camera follows character
+- **Validate:** Can you walk around a basic island? ✅
 
-### Phase 2: The World
-- [ ] Design island map in Tiled
-- [ ] Import tilemap JSON into Phaser
-- [ ] Collision detection (trees, buildings, water)
-- [ ] Interaction zones (press space near objects)
-- **Validate:** Does the island feel right?
+### Phase 2: The World ✅
+- [x] Design island map in Tiled
+- [x] Import tilemap JSON into Phaser
+- [x] Collision detection (trees, buildings, water)
+- [x] Interaction zones (press E near objects)
+- **Validate:** Does the island feel right? ✅
 
-### Phase 3: Transitions
-- [ ] Circle wipe transition component
-- [ ] Hook interactions to React navigation
-- [ ] Return to game at same position
-- **Validate:** Full loop — walk, interact, view, return
+### Phase 3: Transitions ✅
+- [x] Fade transition (black overlay)
+- [x] Hook interactions to React navigation
+- [ ] Return to game at same position (currently reloads)
+- **Validate:** Full loop — walk, interact, view, return ✅
 
-### Phase 4: Polish & Content
-- [ ] Real pixel art assets
+### Phase 4: Polish & Content 🚧
+- [x] Real pixel art assets (Fantasy Tileset Premium)
 - [ ] Two ragdoll cats (wandering NPCs)
-- [ ] Lo-fi audio per zone
+- [x] Lo-fi background music
+- [ ] Different tracks per zone
+- [x] Particle effects (fireflies, falling leaves)
 - [ ] Secrets & easter eggs
 - [ ] Mobile illustrated map fallback
-- [ ] Content pages (Lab, Library, Home, etc.)
+- [x] Content pages (Projects, Reading List, Blog, Travels) — all under construction
+- [x] Welcome message sequence on game start
+- [x] Adventure zone auto-dialogue (bottom-right of map)
+- [x] NPC with cycling dialogue
+- [x] Logo click triggers character speech
+- [x] Burger menu navigation
+- [ ] Socials integration
+- [ ] Contact/leads form
