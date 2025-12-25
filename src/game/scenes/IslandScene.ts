@@ -122,6 +122,13 @@ const GID_TO_KEY: Record<number, string> = {
   13143: 'obj_rock_gray_grass_11',
 }
 
+// Interactive buildings config
+const INTERACTIVE_BUILDINGS: Record<string, { label: string; section: string; offsetX?: number; offsetY?: number }> = {
+  'obj_tower_bluewood_1_3': { label: 'Projects and stuff', section: 'projects', offsetX: 15, offsetY: 160 },
+  'obj_marketstand_2_yellow': { label: 'What I\'m reading', section: 'readinglist', offsetY: 30 },
+  'obj_house_redwood_1_4': { label: 'About me', section: 'about', offsetY: 20 },
+}
+
 export class IslandScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Sprite
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
@@ -129,6 +136,11 @@ export class IslandScene extends Phaser.Scene {
   private moveSpeed = 100
   private currentDirection = 'down'
   private map!: Phaser.Tilemaps.Tilemap
+  private buildingMarkers: Phaser.GameObjects.Container[] = []
+  private interactiveZones: { x: number; y: number; section: string; label: string }[] = []
+  private interactPrompt!: Phaser.GameObjects.Text
+  private nearbyBuilding: { section: string; label: string } | null = null
+  private interactKey!: Phaser.Input.Keyboard.Key
 
   constructor() {
     super({ key: 'IslandScene' })
@@ -309,6 +321,8 @@ export class IslandScene extends Phaser.Scene {
 
     // Create objects from object layer
     const objectLayer = this.map.getObjectLayer('Objects')
+    const buildingsToMark: { x: number; y: number; height: number; key: string }[] = []
+
     if (objectLayer) {
       // Sort objects by Y position for proper depth ordering
       const sortedObjects = [...objectLayer.objects].sort((a, b) => (a.y || 0) - (b.y || 0))
@@ -322,24 +336,43 @@ export class IslandScene extends Phaser.Scene {
           if (textureKey && this.textures.exists(textureKey)) {
             // Tiled uses bottom-left origin, Phaser uses center
             // obj.x is left edge, obj.y is bottom edge
-            const sprite = this.add.sprite(
-              (obj.x || 0) + (obj.width || 0) / 2,
-              (obj.y || 0) - (obj.height || 0) / 2,
-              textureKey
-            )
+            const spriteX = (obj.x || 0) + (obj.width || 0) / 2
+            const spriteY = (obj.y || 0) - (obj.height || 0) / 2
+            const sprite = this.add.sprite(spriteX, spriteY, textureKey)
             // Use Y position for depth sorting (higher Y = rendered on top)
             sprite.setDepth(obj.y || 0)
+
+            // Track interactive buildings for markers and interaction zones
+            if (INTERACTIVE_BUILDINGS[textureKey]) {
+              const config = INTERACTIVE_BUILDINGS[textureKey]
+              buildingsToMark.push({
+                x: spriteX,
+                y: (obj.y || 0) - (obj.height || 0), // Top of the building
+                height: obj.height || 0,
+                key: textureKey
+              })
+              // Store interaction zone at building base (where player walks)
+              this.interactiveZones.push({
+                x: spriteX,
+                y: obj.y || 0, // Bottom of building (ground level)
+                section: config.section,
+                label: config.label
+              })
+            }
           }
         }
       }
     }
 
+    // Create bouncing markers above interactive buildings
+    this.createBuildingMarkers(buildingsToMark)
+
     // Create animations
     this.createAnimations()
 
     // Spawn player at tile (23, 23) - center of island
-    const spawnX = 21 * 16 + 8  // +8 to center in tile
-    const spawnY = 22 * 16 + 8
+    const spawnX = 17 * 16 + 8  // +8 to center in tile
+    const spawnY = 15 * 16 + 8
     this.player = this.add.sprite(spawnX, spawnY, 'character_idle')
     this.player.play('idle_down')
     this.player.setScale(1) // Native size for 16px tile map
@@ -366,6 +399,23 @@ export class IslandScene extends Phaser.Scene {
 
     // Debug: Press C to toggle collision overlay
     this.input.keyboard!.addKey('C').on('down', () => this.toggleCollisionDebug())
+
+    // Interaction key (E)
+    this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E)
+    this.interactKey.on('down', () => this.handleInteraction())
+
+    // Interaction prompt (hidden by default)
+    this.interactPrompt = this.add.text(0, 0, 'Press E', {
+      fontSize: '8px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+      resolution: 4,
+    })
+    this.interactPrompt.setOrigin(0.5, 1)
+    this.interactPrompt.setDepth(20001)
+    this.interactPrompt.setVisible(false)
   }
 
   private createAnimations() {
@@ -387,6 +437,66 @@ export class IslandScene extends Phaser.Scene {
         frames: this.anims.generateFrameNumbers('character_idle', { start, end }),
         frameRate: 6,
         repeat: -1
+      })
+    }
+  }
+
+  private createBuildingMarkers(buildings: { x: number; y: number; height: number; key: string }[]) {
+    for (const building of buildings) {
+      const config = INTERACTIVE_BUILDINGS[building.key]
+      if (!config) continue
+
+      // Create container at building top (with optional X/Y offset)
+      const markerX = building.x + (config.offsetX || 0)
+      const markerY = building.y - 16 + (config.offsetY || 0) // 16px above building top
+      const container = this.add.container(markerX, markerY)
+      container.setDepth(20000) // Always on top
+
+      // Create down-pointing arrow using graphics
+      const arrow = this.add.graphics()
+      arrow.fillStyle(0xffdd44, 1) // Golden yellow
+      arrow.lineStyle(2, 0x000000, 0.5) // Dark outline
+
+      // Draw arrow shape (down-pointing triangle with stem)
+      arrow.beginPath()
+      arrow.moveTo(0, 8)      // Bottom point
+      arrow.lineTo(-6, -2)    // Top left
+      arrow.lineTo(-3, -2)    // Inner left
+      arrow.lineTo(-3, -8)    // Stem top left
+      arrow.lineTo(3, -8)     // Stem top right
+      arrow.lineTo(3, -2)     // Inner right
+      arrow.lineTo(6, -2)     // Top right
+      arrow.closePath()
+      arrow.fillPath()
+      arrow.strokePath()
+
+      container.add(arrow)
+
+      // Add text label above the arrow
+      const label = this.add.text(0, -18, config.label, {
+        fontSize: '8px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2,
+        resolution: 4, // Higher resolution for crisp text when zoomed
+      })
+      label.setOrigin(0.5, 1) // Center horizontally, anchor at bottom
+      container.add(label)
+
+      // Store reference
+      this.buildingMarkers.push(container)
+
+      // Add bouncing animation with slight delay offset per building
+      const delay = this.buildingMarkers.length * 200
+      this.tweens.add({
+        targets: container,
+        y: markerY - 6, // Bounce 6px up
+        duration: 500,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1,
+        delay: delay
       })
     }
   }
@@ -433,6 +543,37 @@ export class IslandScene extends Phaser.Scene {
 
     // Update player depth based on Y position for proper sorting
     this.player.setDepth(this.player.y)
+
+    // Check proximity to interactive buildings
+    this.checkBuildingProximity()
+  }
+
+  private checkBuildingProximity() {
+    const INTERACT_DISTANCE = 40 // pixels
+    this.nearbyBuilding = null
+
+    for (const zone of this.interactiveZones) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, zone.x, zone.y)
+      if (dist < INTERACT_DISTANCE) {
+        this.nearbyBuilding = { section: zone.section, label: zone.label }
+        break
+      }
+    }
+
+    // Show/hide interaction prompt
+    if (this.nearbyBuilding) {
+      this.interactPrompt.setPosition(this.player.x, this.player.y - 30)
+      this.interactPrompt.setVisible(true)
+    } else {
+      this.interactPrompt.setVisible(false)
+    }
+  }
+
+  private handleInteraction() {
+    if (this.nearbyBuilding) {
+      // Navigate to the section page
+      window.location.href = `/${this.nearbyBuilding.section}`
+    }
   }
 
   // 60x36 collision grid: . = walkable, # = blocked
