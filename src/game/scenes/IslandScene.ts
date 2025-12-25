@@ -416,6 +416,94 @@ export class IslandScene extends Phaser.Scene {
     this.interactPrompt.setOrigin(0.5, 1)
     this.interactPrompt.setDepth(20001)
     this.interactPrompt.setVisible(false)
+
+    // Show welcome bubble on spawn
+    this.showWelcomeBubble()
+  }
+
+  private welcomeBubble: Phaser.GameObjects.Container | null = null
+  private welcomeMessages = [
+    'Heyho friend!',
+    'Welcome to my cozy corner\nof the internet.',
+    'Feel free to roam around\nusing WASD and press E\nto interact with venues.',
+  ]
+  private currentMessageIndex = 0
+
+  private showWelcomeBubble() {
+    this.currentMessageIndex = 0
+    this.showNextMessage()
+  }
+
+  private showNextMessage() {
+    // Clean up previous bubble
+    if (this.welcomeBubble) {
+      this.welcomeBubble.destroy()
+      this.welcomeBubble = null
+    }
+
+    // Check if we're done
+    if (this.currentMessageIndex >= this.welcomeMessages.length) {
+      return
+    }
+
+    const message = this.welcomeMessages[this.currentMessageIndex]
+
+    // Create container for bubble (tail points to player head)
+    this.welcomeBubble = this.add.container(this.player.x, this.player.y - 30)
+    this.welcomeBubble.setDepth(30000)
+    this.welcomeBubble.setAlpha(0)
+
+    // Create bubble background
+    const padding = 10
+    const text = this.add.text(0, 0, message, {
+      fontSize: '7px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#3d3d3d',
+      align: 'center',
+      lineSpacing: 4,
+      resolution: 4,
+    })
+    text.setOrigin(0.5, 1) // Anchor at bottom center
+
+    const bubbleWidth = Math.max(text.width + padding * 2, 60)
+    const bubbleHeight = text.height + padding * 2
+    const tailHeight = 10
+
+    // Draw bubble shape (grows upward from bottom)
+    const bubble = this.add.graphics()
+    bubble.fillStyle(0xffffff, 0.95)
+    bubble.lineStyle(2, 0x3d3d3d, 1)
+    bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+    bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+
+    // Draw speech bubble tail at bottom (fixed position)
+    bubble.fillStyle(0xffffff, 1)
+    bubble.fillTriangle(-8, -1, 8, -1, 0, tailHeight)
+    // Draw only the outer edges of the tail
+    bubble.lineStyle(2, 0x3d3d3d, 1)
+    bubble.lineBetween(-8, 0, 0, tailHeight)
+    bubble.lineBetween(8, 0, 0, tailHeight)
+
+    // Position text inside bubble
+    text.setPosition(0, -padding)
+
+    this.welcomeBubble.add([bubble, text])
+
+    // Fade in
+    this.tweens.add({
+      targets: this.welcomeBubble,
+      alpha: 1,
+      duration: 150,
+    })
+
+    // Auto-advance after delay (longer for longer messages)
+    const wordCount = message.split(/\s+/).length
+    const delay = Math.max(2000, wordCount * 400) // At least 2s, ~400ms per word
+
+    this.time.delayedCall(delay, () => {
+      this.currentMessageIndex++
+      this.showNextMessage()
+    })
   }
 
   private createAnimations() {
@@ -543,6 +631,11 @@ export class IslandScene extends Phaser.Scene {
 
     // Update player depth based on Y position for proper sorting
     this.player.setDepth(this.player.y)
+
+    // Update welcome bubble position to follow player
+    if (this.welcomeBubble) {
+      this.welcomeBubble.setPosition(this.player.x, this.player.y - 30)
+    }
 
     // Check proximity to interactive buildings
     this.checkBuildingProximity()
