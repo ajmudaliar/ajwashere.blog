@@ -296,6 +296,9 @@ export class IslandScene extends Phaser.Scene {
 
     const allTilesets = [groundTileset, waterTileset, roadTileset, rockSlopeTileset, bridgeTileset].filter(Boolean) as Phaser.Tilemaps.Tileset[]
 
+    // Build collision map from raw JSON data before creating layers
+    this.buildCollisionMap()
+
     // Create tile layers (order matters for rendering)
     this.map.createLayer('Ground', allTilesets)
     this.map.createLayer('Water', allTilesets)
@@ -360,6 +363,9 @@ export class IslandScene extends Phaser.Scene {
       S: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
       D: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     }
+
+    // Debug: Press C to toggle collision overlay
+    this.input.keyboard!.addKey('C').on('down', () => this.toggleCollisionDebug())
   }
 
   private createAnimations() {
@@ -429,31 +435,106 @@ export class IslandScene extends Phaser.Scene {
     this.player.setDepth(this.player.y)
   }
 
-  private canMoveTo(x: number, y: number): boolean {
-    // Check map bounds
-    const padding = 16
-    const mapWidth = this.map.widthInPixels || 960
-    const mapHeight = this.map.heightInPixels || 576
+  // 60x36 collision grid: . = walkable, # = blocked
+  // Edit this to fine-tune collision!
+  private static readonly COLLISION_GRID = [
+    '#####################################################.......', // y=0
+    '################################.....################.......', // y=1
+    '###############################......###############........', // y=2
+    '##############################.......##############.........', // y=3
+    '#############################........##############.........', // y=4
+    '#############################........#............#.........', // y=5
+    '#############################........#............#.........', // y=6
+    '###########....##########...#.......##............#.........', // y=7
+    '###########....##########...#.......##............#........#', // y=8
+    '###########....####.........#.......##............#......###', // y=9
+    '###########.................####....#............##.....####', // y=10
+    '########....................####....#............#......####', // y=11
+    '########.......................#....##############.....#####', // y=12
+    '########...............................................#####', // y=13
+    '########.......#...#...................................#####', // y=14
+    '########......##...######..............................#####', // y=15
+    '########.....##.........###....#....#############......#####', // y=16
+    '#####........#............#....#....#............#......####', // y=17
+    '#####........#............#....#....#............#.......###', // y=18
+    '#####........#............#...##....#............#.......###', // y=19
+    '#####........#............#...#.....#............#.......###', // y=20
+    '##########...#...........##...#.....##...........#.......###', // y=21
+    '##########...#...........#....#......#...........#.......###', // y=22
+    '##########...##..........#....#......#...........##.......##', // y=23
+    '###########...##.........#....#......#...........##.......##', // y=24
+    '###########....###......##....#......#...........##........#', // y=25
+    '#####.............##....#.....#......#............#........#', // y=26
+    '#####.........#######...#.....#......#............#.........', // y=27
+    '#####.........#####...........#.....##............#.........', // y=28
+    '#######.......................#.....##............#.........', // y=29
+    '#######......................##.....##...........##.........', // y=30
+    '##########..............##############...........##..........', // y=31
+    '##########..............##############..........###..........', // y=32
+    '######################################..........##...........', // y=33
+    '#################################################...........', // y=34
+    '#################################################...........', // y=35
+  ]
 
-    if (x < padding || x > mapWidth - padding || y < padding || y > mapHeight - padding) {
+  private collisionMap: boolean[][] = []
+  private mapWidthTiles = 60
+  private mapHeightTiles = 36
+
+  private buildCollisionMap() {
+    this.mapHeightTiles = IslandScene.COLLISION_GRID.length
+    this.mapWidthTiles = IslandScene.COLLISION_GRID[0]?.length || 60
+
+    for (let y = 0; y < this.mapHeightTiles; y++) {
+      this.collisionMap[y] = []
+      const row = IslandScene.COLLISION_GRID[y] || ''
+      for (let x = 0; x < this.mapWidthTiles; x++) {
+        this.collisionMap[y][x] = row[x] !== '#'
+      }
+    }
+    console.log('Collision map built:', this.mapWidthTiles, 'x', this.mapHeightTiles)
+  }
+
+  // Toggle with 'C' key - shows collision overlay
+  private debugOverlay: Phaser.GameObjects.Graphics | null = null
+  private showCollisionDebug = false
+
+  private toggleCollisionDebug() {
+    this.showCollisionDebug = !this.showCollisionDebug
+
+    if (this.showCollisionDebug) {
+      if (!this.debugOverlay) {
+        this.debugOverlay = this.add.graphics()
+        this.debugOverlay.setDepth(10000) // On top of everything
+      }
+
+      this.debugOverlay.clear()
+
+      for (let y = 0; y < this.mapHeightTiles; y++) {
+        for (let x = 0; x < this.mapWidthTiles; x++) {
+          const walkable = this.collisionMap[y]?.[x]
+          // Red = blocked, Green = walkable (semi-transparent)
+          this.debugOverlay.fillStyle(walkable ? 0x00ff00 : 0xff0000, 0.3)
+          this.debugOverlay.fillRect(x * 16, y * 16, 16, 16)
+        }
+      }
+      console.log('Collision debug ON - red=blocked, green=walkable')
+    } else {
+      this.debugOverlay?.clear()
+      console.log('Collision debug OFF')
+    }
+  }
+
+  private canMoveTo(x: number, y: number): boolean {
+    // Convert world coords to tile coords
+    const tileX = Math.floor(x / 16)
+    const tileY = Math.floor(y / 16)
+
+    // Check bounds
+    if (tileX < 0 || tileX >= this.mapWidthTiles || tileY < 0 || tileY >= this.mapHeightTiles) {
       return false
     }
 
-    // Convert to tile coords
-    const tileX = this.map.worldToTileX(x)
-    const tileY = this.map.worldToTileY(y)
-    if (tileX === null || tileY === null) return false
-
-    // Check if there's walkable ground (Ground, Road, or Bridge layer has a tile)
-    const groundLayer = this.map.getLayer('Ground')?.tilemapLayer
-    const roadLayer = this.map.getLayer('Road')?.tilemapLayer
-    const bridgeLayer = this.map.getLayer('Bridge')?.tilemapLayer
-
-    const hasGround = groundLayer?.getTileAt(tileX, tileY)?.index !== -1 && groundLayer?.getTileAt(tileX, tileY) !== null
-    const hasRoad = roadLayer?.getTileAt(tileX, tileY)?.index !== -1 && roadLayer?.getTileAt(tileX, tileY) !== null
-    const hasBridge = bridgeLayer?.getTileAt(tileX, tileY)?.index !== -1 && bridgeLayer?.getTileAt(tileX, tileY) !== null
-
-    // Can walk if any walkable layer has a tile
-    return hasGround || hasRoad || hasBridge
+    // Check collision map
+    return this.collisionMap[tileY]?.[tileX] ?? false
   }
 }
