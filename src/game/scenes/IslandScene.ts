@@ -126,6 +126,7 @@ const GID_TO_KEY: Record<number, string> = {
 const INTERACTIVE_BUILDINGS: Record<string, { label: string; section: string; offsetX?: number; offsetY?: number }> = {
   'obj_tower_bluewood_1_3': { label: 'Projects and stuff', section: 'projects', offsetX: 15, offsetY: 160 },
   'obj_marketstand_2_yellow': { label: 'What I\'m reading', section: 'readinglist', offsetY: 30 },
+  'obj_bulletinboard_2': { label: 'Blog', section: 'blog', offsetY: 10 },
 }
 
 export class IslandScene extends Phaser.Scene {
@@ -411,6 +412,17 @@ export class IslandScene extends Phaser.Scene {
       y: npcY,
       section: 'about',
       label: 'About me'
+    })
+
+    // Add bridge marker and interaction zone (manual - not from tilemap)
+    const bridgeX = 680
+    const bridgeY = 220
+    this.createBridgeMarker(bridgeX, bridgeY)
+    this.interactiveZones.push({
+      x: bridgeX,
+      y: bridgeY, // Interaction zone at bridge entrance
+      section: 'travels',
+      label: 'Travels'
     })
 
     // Camera - zoom to fill screen nicely
@@ -894,6 +906,57 @@ export class IslandScene extends Phaser.Scene {
     })
   }
 
+  private createBridgeMarker(bridgeX: number, bridgeY: number) {
+    // Create marker above the bridge
+    const markerY = bridgeY - 30
+    const container = this.add.container(bridgeX, markerY)
+    container.setDepth(20000)
+
+    // Create down-pointing arrow
+    const arrow = this.add.graphics()
+    arrow.fillStyle(0xffdd44, 1)
+    arrow.lineStyle(2, 0x000000, 0.5)
+
+    arrow.beginPath()
+    arrow.moveTo(0, 8)
+    arrow.lineTo(-6, -2)
+    arrow.lineTo(-3, -2)
+    arrow.lineTo(-3, -8)
+    arrow.lineTo(3, -8)
+    arrow.lineTo(3, -2)
+    arrow.lineTo(6, -2)
+    arrow.closePath()
+    arrow.fillPath()
+    arrow.strokePath()
+
+    container.add(arrow)
+
+    // Add text label
+    const label = this.add.text(0, -18, 'Travels', {
+      fontSize: '8px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+      resolution: 4,
+    })
+    label.setOrigin(0.5, 1)
+    container.add(label)
+
+    this.buildingMarkers.push(container)
+
+    // Add bouncing animation
+    this.tweens.add({
+      targets: container,
+      y: markerY - 6,
+      duration: 500,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+      delay: 600
+    })
+  }
+
   update() {
     let velocityX = 0, velocityY = 0, isMoving = false
     let newDirection = this.currentDirection
@@ -1174,8 +1237,8 @@ export class IslandScene extends Phaser.Scene {
     '########.......................#....##############.....#####', // y=12
     '########...............................................#####', // y=13
     '########.......#...#...................................#####', // y=14
-    '########......##...######..............................#####', // y=15
-    '########.....##.........###....#....#############......#####', // y=16
+    '########......##...######...........##############....#####', // y=15
+    '########.....##.........###....#....#..................#####', // y=16
     '#####........#............#....#....#............#......####', // y=17
     '#####........#............#....#....#............#.......###', // y=18
     '#####........#............#...##....#............#.......###', // y=19
