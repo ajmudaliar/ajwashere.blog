@@ -16,11 +16,3 @@ export const BOOK_CONSTANTS = {
   BOOK_DEPTH: 0.08,
 }
 
-// Archway dimensions
-export const ARCHWAY_CONSTANTS = {
-  FRAME_WIDTH: 14,
-  FRAME_HEIGHT: 10,
-  PASSAGE_DEPTH: 0.5,
-  OPENING_WIDTH: 10,
-  OPENING_HEIGHT: 7.5,
-}

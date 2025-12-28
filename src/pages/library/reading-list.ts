@@ -1445,6 +1445,10 @@ export const BOOKS_BY_STATUS = {
   wantToRead: READING_LIST.filter(b => b.status === 'Have not started'),
   later: READING_LIST.filter(b => b.status === 'Later'),
   postponed: READING_LIST.filter(b => b.status === 'Postponed'),
+  // Combined: finished + later + postponed (books to show on shelves)
+  forLibrary: READING_LIST.filter(b =>
+    b.status === 'Finished' || b.status === 'Later' || b.status === 'Postponed'
+  ),
 }
 
 export const FEATURED_BOOK = BOOKS_BY_STATUS.reading[0] || BOOKS_BY_STATUS.finished[0]

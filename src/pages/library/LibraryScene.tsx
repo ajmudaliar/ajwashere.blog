@@ -92,8 +92,8 @@ function Carpet({ position, width, depth }: { position: [number, number, number]
 const UNITS_WIDE = 5
 const BOOKS_PER_CELL = 3
 
-// Only show finished books on center bookshelf, with placeholders for empty spaces
-const FINISHED_BOOKS = BOOKS_BY_STATUS.finished
+// Show finished, later, and postponed books on center bookshelf
+const FINISHED_BOOKS = BOOKS_BY_STATUS.forLibrary
 
 // Calculate total shelf capacity (minus alcove)
 const TOTAL_SLOTS = UNITS_WIDE * BOOKS_PER_CELL * 7 - 9 // 7 rows, minus 9 alcove slots

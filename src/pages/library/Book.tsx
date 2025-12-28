@@ -1,9 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useSpring, animated } from '@react-spring/three'
-import { Text } from '@react-three/drei'
+import { Text, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import type { Book as BookType } from './types'
 import { BOOK_CONSTANTS } from './constants'
+import { getBookCoverPath, hasCover } from './book-covers'
+import { COVER_ASSIGNMENTS } from './cover-assignments'
 
 // Display orientation: cover faces camera
 const { BOOK_HEIGHT, BOOK_WIDTH, BOOK_DEPTH } = BOOK_CONSTANTS
@@ -26,11 +28,23 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 1) + '…'
 }
 
-export function Book({ book, position }: BookProps) {
+// Book with cover texture
+function BookWithCover({ book, position, coverId }: BookProps & { coverId: string }) {
   const [hovered, setHovered] = useState(false)
   const meshRef = useRef<THREE.Mesh>(null)
 
-  // Spring animation for hover effect
+  const coverUrl = getBookCoverPath(coverId)
+
+  // Load the cover texture
+  const texture = useTexture(coverUrl)
+
+  // Configure texture
+  useMemo(() => {
+    if (texture) {
+      texture.colorSpace = THREE.SRGBColorSpace
+    }
+  }, [texture])
+
   const { positionY, positionZ, rotationX } = useSpring({
     positionY: hovered ? 0.15 : 0,
     positionZ: hovered ? 0.3 : 0,
@@ -38,7 +52,52 @@ export function Book({ book, position }: BookProps) {
     config: { mass: 1, tension: 280, friction: 20 },
   })
 
-  // Format title for display - split into lines if needed
+  return (
+    <animated.group
+      position-x={position[0]}
+      position-y={positionY.to((y) => position[1] + y)}
+      position-z={positionZ.to((z) => position[2] + z)}
+      rotation-x={rotationX}
+    >
+      <mesh
+        ref={meshRef}
+        castShadow
+        receiveShadow
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          setHovered(true)
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={() => {
+          setHovered(false)
+          document.body.style.cursor = 'default'
+        }}
+      >
+        <boxGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, BOOK_DEPTH]} />
+        {/* 6 faces: right, left, top, bottom, front (cover), back */}
+        <meshStandardMaterial attach="material-0" color={book.color} roughness={0.7} />
+        <meshStandardMaterial attach="material-1" color={book.color} roughness={0.7} />
+        <meshStandardMaterial attach="material-2" color={book.color} roughness={0.7} />
+        <meshStandardMaterial attach="material-3" color={book.color} roughness={0.7} />
+        <meshStandardMaterial attach="material-4" map={texture} roughness={0.5} />
+        <meshStandardMaterial attach="material-5" color={book.color} roughness={0.7} />
+      </mesh>
+    </animated.group>
+  )
+}
+
+// Book without cover (text inscription)
+function BookWithText({ book, position }: BookProps) {
+  const [hovered, setHovered] = useState(false)
+  const meshRef = useRef<THREE.Mesh>(null)
+
+  const { positionY, positionZ, rotationX } = useSpring({
+    positionY: hovered ? 0.15 : 0,
+    positionZ: hovered ? 0.3 : 0,
+    rotationX: hovered ? -0.15 : BASE_LEAN,
+    config: { mass: 1, tension: 280, friction: 20 },
+  })
+
   const displayTitle = truncate(book.title, 40)
   const displayAuthor = truncate(book.author, 25)
 
@@ -49,7 +108,6 @@ export function Book({ book, position }: BookProps) {
       position-z={positionZ.to((z) => position[2] + z)}
       rotation-x={rotationX}
     >
-      {/* Book body */}
       <mesh
         ref={meshRef}
         castShadow
@@ -103,6 +161,18 @@ export function Book({ book, position }: BookProps) {
       </Text>
     </animated.group>
   )
+}
+
+// Main Book component - chooses between cover texture or text
+export function Book({ book, position }: BookProps) {
+  // Look up cover ID from assignments, fallback to book's googleBooksId
+  const coverId = COVER_ASSIGNMENTS[book.id] || book.googleBooksId
+
+  // Use cover texture only if we have a real cover downloaded
+  if (coverId && hasCover(coverId)) {
+    return <BookWithCover book={book} position={position} coverId={coverId} />
+  }
+  return <BookWithText book={book} position={position} />
 }
 
 // Re-export constants for convenience

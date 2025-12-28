@@ -4,6 +4,7 @@ import { Projects } from './pages/Projects'
 import { ReadingList } from './pages/ReadingList'
 import { Blog } from './pages/Blog'
 import { Travels } from './pages/Travels'
+import { CoverManager } from './pages/library/CoverManager'
 import './App.css'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route path="/readinglist" element={<ReadingList />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/travels" element={<Travels />} />
+        <Route path="/admin/covers" element={<CoverManager />} />
       </Routes>
     </BrowserRouter>
   )
