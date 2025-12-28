@@ -453,6 +453,120 @@ function DustParticles({ count = 200 }: { count?: number }) {
   )
 }
 
+// Crown molding around ceiling edges
+function CrownMolding({
+  width,
+  ceilingY,
+  centerZ
+}: {
+  width: number
+  depth: number
+  ceilingY: number
+  centerZ: number
+}) {
+  const moldingColor = '#D4CFC4'
+  const accentColor = '#C4BFB4'
+
+  // Visible molding across the top of the scene (front-facing)
+  return (
+    <group>
+      {/* Main crown molding - runs across visible ceiling edge */}
+      {/* Upper band */}
+      <mesh position={[0, ceilingY - 0.08, centerZ + 1]}>
+        <boxGeometry args={[width + 1, 0.16, 0.2]} />
+        <meshStandardMaterial color={moldingColor} roughness={0.5} />
+      </mesh>
+      {/* Lower decorative lip */}
+      <mesh position={[0, ceilingY - 0.2, centerZ + 1.1]}>
+        <boxGeometry args={[width + 1, 0.08, 0.1]} />
+        <meshStandardMaterial color={accentColor} roughness={0.5} />
+      </mesh>
+      {/* Bottom trim */}
+      <mesh position={[0, ceilingY - 0.28, centerZ + 1.15]}>
+        <boxGeometry args={[width + 1, 0.04, 0.06]} />
+        <meshStandardMaterial color={moldingColor} roughness={0.5} />
+      </mesh>
+
+      {/* Left side molding - running toward camera */}
+      <mesh position={[-width / 2 - 0.4, ceilingY - 0.08, 2]}>
+        <boxGeometry args={[0.2, 0.16, 8]} />
+        <meshStandardMaterial color={moldingColor} roughness={0.5} />
+      </mesh>
+      <mesh position={[-width / 2 - 0.3, ceilingY - 0.2, 2]}>
+        <boxGeometry args={[0.1, 0.08, 8]} />
+        <meshStandardMaterial color={accentColor} roughness={0.5} />
+      </mesh>
+
+      {/* Right side molding - running toward camera */}
+      <mesh position={[width / 2 + 0.4, ceilingY - 0.08, 2]}>
+        <boxGeometry args={[0.2, 0.16, 8]} />
+        <meshStandardMaterial color={moldingColor} roughness={0.5} />
+      </mesh>
+      <mesh position={[width / 2 + 0.3, ceilingY - 0.2, 2]}>
+        <boxGeometry args={[0.1, 0.08, 8]} />
+        <meshStandardMaterial color={accentColor} roughness={0.5} />
+      </mesh>
+    </group>
+  )
+}
+
+// Library ladder leaning against bookshelf
+function LibraryLadder({
+  position,
+  rotation = 0,
+  height = 3.5
+}: {
+  position: [number, number, number]
+  rotation?: number
+  height?: number
+  floorY: number
+}) {
+  const woodColor = '#8B7355'
+  const railWidth = 0.12
+  const railDepth = 0.08
+  const rungCount = 8
+  const ladderWidth = 0.9
+  const leanAngle = 0.15 // Radians, leaning against shelf
+
+  // Calculate rung positions
+  const rungs = useMemo(() => {
+    const rungPositions: number[] = []
+    const startY = 0.15
+    const spacing = (height - 0.3) / (rungCount - 1)
+    for (let i = 0; i < rungCount; i++) {
+      rungPositions.push(startY + i * spacing)
+    }
+    return rungPositions
+  }, [height, rungCount])
+
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      {/* Ladder tilted to lean against shelf */}
+      <group rotation={[-leanAngle, 0, 0]}>
+        {/* Left rail */}
+        <mesh position={[-ladderWidth / 2, height / 2, 0]} castShadow>
+          <boxGeometry args={[railWidth, height, railDepth]} />
+          <meshStandardMaterial color={woodColor} roughness={0.8} />
+        </mesh>
+
+        {/* Right rail */}
+        <mesh position={[ladderWidth / 2, height / 2, 0]} castShadow>
+          <boxGeometry args={[railWidth, height, railDepth]} />
+          <meshStandardMaterial color={woodColor} roughness={0.8} />
+        </mesh>
+
+        {/* Rungs */}
+        {rungs.map((y, i) => (
+          <mesh key={i} position={[0, y, 0]} castShadow>
+            <boxGeometry args={[ladderWidth - railWidth, 0.06, railDepth * 0.8]} />
+            <meshStandardMaterial color={woodColor} roughness={0.8} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  )
+}
+
 function Scene() {
   // Position the center bookshelf
   const centerZ = -2
@@ -480,6 +594,9 @@ function Scene() {
         <meshStandardMaterial color="#F5F5F0" roughness={0.95} />
       </mesh>
 
+      {/* Crown molding */}
+      <CrownMolding width={roomWidth} depth={roomDepth} ceilingY={ceilingY} centerZ={centerZ} />
+
       {/* Simple & Clean lighting */}
       <ambientLight intensity={0.6} color="#ffe8d0" />
       <directionalLight
@@ -505,6 +622,14 @@ function Scene() {
         rotation={[0, Math.PI / 2, 0]}
         unitsWide={3}
         seed={42}
+      />
+
+      {/* Library ladder leaning against left shelf */}
+      <LibraryLadder
+        position={[-3.2, floorY, 4]}
+        rotation={Math.PI / 2}
+        height={6}
+        floorY={floorY}
       />
 
       {/* RIGHT SIDE BOOKSHELF - decorative, perpendicular to view */}
