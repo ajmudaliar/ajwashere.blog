@@ -268,26 +268,49 @@ function Books({ books, bookshelfZ = 0, skipAlcove = false }: BooksProps) {
 }
 
 // Decorative book - no hover interaction, just visual
-function DecorativeBook({ position, color }: { position: [number, number, number]; color: string }) {
+interface DecorativeBookProps {
+  position: [number, number, number]
+  color: string
+  heightScale?: number  // 0.7 to 1.0
+  zOffset?: number      // how far pulled out
+}
+
+function DecorativeBook({ position, color, heightScale = 1, zOffset = 0 }: DecorativeBookProps) {
   const { BOOK_HEIGHT, BOOK_WIDTH, BOOK_DEPTH } = BOOK_CONSTANTS
-  // Rotate 90° on Y so spine faces outward, no tilt
+  const actualHeight = BOOK_HEIGHT * heightScale
+  // Adjust Y so book sits on shelf (not floating)
+  const adjustedY = position[1] - (BOOK_HEIGHT - actualHeight) / 2
+  // Rotate 90° on Y so spine faces outward
   return (
-    <mesh position={position} rotation={[0, Math.PI / 2, 0]} castShadow receiveShadow>
-      <boxGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, BOOK_DEPTH]} />
+    <mesh
+      position={[position[0], adjustedY, position[2] + zOffset]}
+      rotation={[0, Math.PI / 2, 0]}
+      castShadow
+      receiveShadow
+    >
+      <boxGeometry args={[BOOK_WIDTH, actualHeight, BOOK_DEPTH]} />
       <meshStandardMaterial color={color} roughness={0.7} metalness={0.1} />
     </mesh>
   )
+}
+
+// Seeded random for consistent but varied results
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed * 9999) * 10000
+  return x - Math.floor(x)
 }
 
 // Side bookshelf with decorative books (non-interactive, spine-out)
 function SideBookshelf({
   position,
   rotation = [0, 0, 0],
-  unitsWide = 2
+  unitsWide = 2,
+  seed = 0
 }: {
   position: [number, number, number]
   rotation?: [number, number, number]
   unitsWide?: number
+  seed?: number
 }) {
   const { UNIT_WIDTH, SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT } = BOOKSHELF_CONSTANTS
   const { BOOK_DEPTH, BOOK_HEIGHT } = BOOK_CONSTANTS
@@ -300,12 +323,26 @@ function SideBookshelf({
   const bookGap = 0.02
   const booksPerRow = Math.floor(totalWidth / (spineWidth + bookGap))
 
-  // Generate decorative book positions
+  // Generate decorative book positions with variations
   const decorativeBooks = useMemo(() => {
-    const books: { position: [number, number, number]; color: string }[] = []
+    const books: {
+      position: [number, number, number]
+      color: string
+      heightScale: number
+      zOffset: number
+    }[] = []
 
     for (let shelfRow = 0; shelfRow < SHELF_COUNT; shelfRow++) {
       for (let i = 0; i < booksPerRow; i++) {
+        const bookSeed = seed + shelfRow * 1000 + i
+
+        // Random height: 70% to 100% of full height
+        const heightScale = 0.7 + seededRandom(bookSeed) * 0.3
+
+        // Random protrusion: most books flush, some pulled out
+        const pullChance = seededRandom(bookSeed + 500)
+        const zOffset = pullChance > 0.85 ? seededRandom(bookSeed + 600) * 0.06 : 0
+
         // X position: spread across shelf width
         const bookX = (i + 0.5) * (spineWidth + bookGap) - totalWidth / 2
 
@@ -313,20 +350,31 @@ function SideBookshelf({
         const shelfBaseY = shelfRow * SHELF_HEIGHT - totalHeight / 2 + SHELF_THICKNESS / 2
         const bookY = shelfBaseY + BOOK_HEIGHT / 2 + 0.02
 
+        // Vary the color slightly
+        const colorIndex = Math.floor(seededRandom(bookSeed + 100) * DECORATIVE_COLORS.length)
+
         books.push({
-          position: [bookX, bookY, -0.15],  // Push back so rotated books don't protrude
-          color: DECORATIVE_COLORS[(shelfRow * booksPerRow + i) % DECORATIVE_COLORS.length],
+          position: [bookX, bookY, -0.15],
+          color: DECORATIVE_COLORS[colorIndex],
+          heightScale,
+          zOffset,
         })
       }
     }
     return books
-  }, [SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT, totalWidth, totalHeight, BOOK_HEIGHT, booksPerRow, spineWidth, bookGap])
+  }, [SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT, totalWidth, totalHeight, BOOK_HEIGHT, booksPerRow, spineWidth, bookGap, seed])
 
   return (
     <group position={position} rotation={rotation}>
       <BookshelfWall unitsWide={unitsWide} position={[0, 0, 0]} />
       {decorativeBooks.map((book, i) => (
-        <DecorativeBook key={i} position={book.position} color={book.color} />
+        <DecorativeBook
+          key={i}
+          position={book.position}
+          color={book.color}
+          heightScale={book.heightScale}
+          zOffset={book.zOffset}
+        />
       ))}
     </group>
   )
@@ -380,6 +428,7 @@ function Scene() {
         position={[-4.5, 0, 4]}
         rotation={[0, Math.PI / 2, 0]}
         unitsWide={3}
+        seed={42}
       />
 
       {/* RIGHT SIDE BOOKSHELF - decorative, perpendicular to view */}
@@ -387,6 +436,7 @@ function Scene() {
         position={[4.5, 0, 4]}
         rotation={[0, -Math.PI / 2, 0]}
         unitsWide={3}
+        seed={137}
       />
     </>
   )
