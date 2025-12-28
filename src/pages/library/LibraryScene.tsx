@@ -92,12 +92,22 @@ function Carpet({ position, width, depth }: { position: [number, number, number]
 const UNITS_WIDE = 5
 const BOOKS_PER_CELL = 3
 
-// Show finished, later, and postponed books on center bookshelf
-const FINISHED_BOOKS = BOOKS_BY_STATUS.forLibrary
+// Shuffle array randomly
+function shuffle<T>(array: T[]): T[] {
+  const arr = [...array]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+// Books for shelves (finished, later, postponed - excludes currently reading)
+const SHELF_BOOKS = BOOKS_BY_STATUS.forLibrary
 
 // Calculate total shelf capacity (minus alcove)
 const TOTAL_SLOTS = UNITS_WIDE * BOOKS_PER_CELL * 7 - 9 // 7 rows, minus 9 alcove slots
-const PLACEHOLDER_COUNT = Math.max(0, TOTAL_SLOTS - FINISHED_BOOKS.length)
+const PLACEHOLDER_COUNT = Math.max(0, TOTAL_SLOTS - SHELF_BOOKS.length)
 
 // Placeholder book variants
 const PLACEHOLDER_TITLES = [
@@ -127,7 +137,8 @@ const PLACEHOLDER_BOOKS: BookType[] = Array.from({ length: PLACEHOLDER_COUNT }, 
   color: PLACEHOLDER_COLORS[i % PLACEHOLDER_COLORS.length],
 }))
 
-const CENTER_BOOKS = [...FINISHED_BOOKS, ...PLACEHOLDER_BOOKS]
+// Shuffle real books and placeholders together
+const CENTER_BOOKS = shuffle([...SHELF_BOOKS, ...PLACEHOLDER_BOOKS])
 
 // Additional filler colors for decorative books
 const DECORATIVE_COLORS = [
@@ -202,88 +213,50 @@ interface BooksProps {
   books: BookType[]
   bookshelfZ?: number
   skipAlcove?: boolean
-  middleCols?: [number, number]  // Primary columns to fill first [start, end]
-  allowOverflow?: boolean        // Allow overflow to edge columns
 }
 
-function Books({ books, bookshelfZ = 0, skipAlcove = false, middleCols, allowOverflow = true }: BooksProps) {
+function Books({ books, bookshelfZ = 0, skipAlcove = false }: BooksProps) {
   const { UNIT_WIDTH, SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT } = BOOKSHELF_CONSTANTS
   const { BOOK_WIDTH, BOOK_HEIGHT } = BOOK_CONSTANTS
 
   const totalWidth = UNITS_WIDE * UNIT_WIDTH
   const totalHeight = SHELF_COUNT * SHELF_HEIGHT
-
-  // Book positioning within each cell
   const bookGap = 0.08
 
   const bookPositions = useMemo(() => {
     let bookIndex = 0
     const positions: { book: BookType; position: [number, number, number] }[] = []
 
-    const placeBook = (shelfRow: number, unitCol: number, posInUnit: number) => {
-      if (bookIndex >= books.length) return false
-
-      // Skip alcove area
-      if (skipAlcove && unitCol === ALCOVE_COL && shelfRow >= ALCOVE_ROW_START && shelfRow <= ALCOVE_ROW_END) {
-        return true // continue but don't increment
-      }
-
-      const book = books[bookIndex++]
-
-      // X position
-      const unitCenterX = (unitCol + 0.5) * UNIT_WIDTH - totalWidth / 2
-      const bookOffsetX = (posInUnit - 1) * (BOOK_WIDTH + bookGap)
-      const bookX = unitCenterX + bookOffsetX
-
-      // Y position
-      const shelfBaseY = shelfRow * SHELF_HEIGHT - totalHeight / 2 + SHELF_THICKNESS / 2
-      const bookY = shelfBaseY + BOOK_HEIGHT / 2
-
-      // Z position
-      const bookZ = bookshelfZ - 0.02
-
-      positions.push({ book, position: [bookX, bookY, bookZ] })
-      return true
-    }
-
-    // Determine column groups: middle columns first, then edges
-    let middleColumns: number[] = []
-    let edgeColumns: number[] = []
-
-    if (middleCols) {
-      const [startCol, endCol] = middleCols
-      for (let c = startCol; c <= endCol; c++) middleColumns.push(c)
-      for (let c = 0; c < UNITS_WIDE; c++) {
-        if (c < startCol || c > endCol) edgeColumns.push(c)
-      }
-    } else {
-      middleColumns = Array.from({ length: UNITS_WIDE }, (_, i) => i)
-    }
-
-    // FIRST: Fill middle columns across ALL rows
+    // Fill row by row, left to right
     for (let shelfRow = 0; shelfRow < SHELF_COUNT && bookIndex < books.length; shelfRow++) {
-      for (const unitCol of middleColumns) {
-        if (bookIndex >= books.length) break
+      for (let unitCol = 0; unitCol < UNITS_WIDE && bookIndex < books.length; unitCol++) {
         for (let posInUnit = 0; posInUnit < BOOKS_PER_CELL && bookIndex < books.length; posInUnit++) {
-          placeBook(shelfRow, unitCol, posInUnit)
-        }
-      }
-    }
-
-    // THEN: Fill edge columns with overflow (if allowed)
-    if (allowOverflow && edgeColumns.length > 0) {
-      for (let shelfRow = 0; shelfRow < SHELF_COUNT && bookIndex < books.length; shelfRow++) {
-        for (const unitCol of edgeColumns) {
-          if (bookIndex >= books.length) break
-          for (let posInUnit = 0; posInUnit < BOOKS_PER_CELL && bookIndex < books.length; posInUnit++) {
-            placeBook(shelfRow, unitCol, posInUnit)
+          // Skip alcove area
+          if (skipAlcove && unitCol === ALCOVE_COL && shelfRow >= ALCOVE_ROW_START && shelfRow <= ALCOVE_ROW_END) {
+            continue
           }
+
+          const book = books[bookIndex++]
+
+          // X position
+          const unitCenterX = (unitCol + 0.5) * UNIT_WIDTH - totalWidth / 2
+          const bookOffsetX = (posInUnit - 1) * (BOOK_WIDTH + bookGap)
+          const bookX = unitCenterX + bookOffsetX
+
+          // Y position
+          const shelfBaseY = shelfRow * SHELF_HEIGHT - totalHeight / 2 + SHELF_THICKNESS / 2
+          const bookY = shelfBaseY + BOOK_HEIGHT / 2
+
+          // Z position
+          const bookZ = bookshelfZ - 0.02
+
+          positions.push({ book, position: [bookX, bookY, bookZ] })
         }
       }
     }
 
     return positions
-  }, [books, UNIT_WIDTH, SHELF_HEIGHT, SHELF_THICKNESS, totalWidth, totalHeight, BOOK_WIDTH, BOOK_HEIGHT, bookshelfZ, skipAlcove, middleCols, allowOverflow])
+  }, [books, UNIT_WIDTH, SHELF_HEIGHT, SHELF_THICKNESS, totalWidth, totalHeight, BOOK_WIDTH, BOOK_HEIGHT, bookshelfZ, skipAlcove])
 
   return (
     <>
@@ -403,7 +376,7 @@ function Scene() {
       <BookshelfWithAlcove position={[0, 0, centerZ]}>
         <FeaturedBookDisplay />
       </BookshelfWithAlcove>
-      <Books books={CENTER_BOOKS} bookshelfZ={centerZ} skipAlcove middleCols={[1, 3]} />
+      <Books books={CENTER_BOOKS} bookshelfZ={centerZ} skipAlcove />
 
       {/* LEFT SIDE BOOKSHELF - decorative, perpendicular to view */}
       <SideBookshelf
