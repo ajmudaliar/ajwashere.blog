@@ -1,5 +1,5 @@
 import { useRef, useMemo, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { BookshelfWall, BookshelfWithAlcove, BOOKSHELF_CONSTANTS } from './Bookshelf'
 import { Book, BOOK_CONSTANTS } from './Book'
@@ -380,6 +380,79 @@ function SideBookshelf({
   )
 }
 
+// Floating dust particles for magical atmosphere
+function DustParticles({ count = 200 }: { count?: number }) {
+  const pointsRef = useRef<THREE.Points>(null)
+
+  // Generate initial particle positions
+  const { positions, velocities } = useMemo(() => {
+    const pos = new Float32Array(count * 3)
+    const vel = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      // Spread particles in a volume focused near the center/alcove area
+      pos[i3] = (Math.random() - 0.5) * 8       // X: -4 to 4
+      pos[i3 + 1] = (Math.random() - 0.5) * 5   // Y: -2.5 to 2.5
+      pos[i3 + 2] = (Math.random() - 0.5) * 6 + 1 // Z: -2 to 4 (closer to camera)
+
+      // Slow random drift velocities
+      vel[i3] = (Math.random() - 0.5) * 0.02
+      vel[i3 + 1] = (Math.random() - 0.5) * 0.015 + 0.005 // Slight upward bias
+      vel[i3 + 2] = (Math.random() - 0.5) * 0.02
+    }
+
+    return { positions: pos, velocities: vel }
+  }, [count])
+
+  // Animate particles
+  useFrame((_, delta) => {
+    if (!pointsRef.current) return
+
+    const posArray = pointsRef.current.geometry.attributes.position.array as Float32Array
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+
+      // Update positions
+      posArray[i3] += velocities[i3] * delta * 10
+      posArray[i3 + 1] += velocities[i3 + 1] * delta * 10
+      posArray[i3 + 2] += velocities[i3 + 2] * delta * 10
+
+      // Wrap around boundaries
+      if (posArray[i3] > 4) posArray[i3] = -4
+      if (posArray[i3] < -4) posArray[i3] = 4
+      if (posArray[i3 + 1] > 2.5) posArray[i3 + 1] = -2.5
+      if (posArray[i3 + 1] < -2.5) posArray[i3 + 1] = 2.5
+      if (posArray[i3 + 2] > 5) posArray[i3 + 2] = -2
+      if (posArray[i3 + 2] < -2) posArray[i3 + 2] = 5
+    }
+
+    pointsRef.current.geometry.attributes.position.needsUpdate = true
+  })
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.015}
+        color="#fff8e7"
+        transparent
+        opacity={0.4}
+        sizeAttenuation
+        depthWrite={false}
+      />
+    </points>
+  )
+}
+
 function Scene() {
   // Position the center bookshelf
   const centerZ = -2
@@ -416,6 +489,9 @@ function Scene() {
         castShadow
         shadow-mapSize={1024}
       />
+
+      {/* Floating dust particles */}
+      <DustParticles count={150} />
 
       {/* CENTER BOOKSHELF - with alcove for featured books */}
       <BookshelfWithAlcove position={[0, 0, centerZ]}>
