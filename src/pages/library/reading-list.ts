@@ -299,15 +299,6 @@ export const READING_LIST: Book[] = [
     "link": "https://g.co/kgs/1juztZ"
   },
   {
-    "id": "book-36",
-    "title": "The Rise and Fall of the Third Reich",
-    "author": "William L. Shirer",
-    "status": "Postponed",
-    "color": "#4A3F35",
-    "summary": "The Rise and Fall of the Third Reich: A History of Nazi Germany is a book by the journalist William L. Shirer, in which the author chronicles the rise and fall of Nazi Germany from the birth of Adolf Hitler in 1889 to the end of World War II in Europe in 1945",
-    "link": "https://g.co/kgs/yhwmfi"
-  },
-  {
     "id": "book-37",
     "title": "The Biggest Bluff: How I Learned to Pay Attention, Master Myself, and Win",
     "author": "Maria Konnikova",

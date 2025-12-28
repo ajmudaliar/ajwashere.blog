@@ -267,21 +267,19 @@ function Books({ books, bookshelfZ = 0, skipAlcove = false }: BooksProps) {
   )
 }
 
-// Base lean angle for books (leaning back against shelf - negative X rotation)
-const BOOK_LEAN = -0.087 // ~5 degrees backward
-
 // Decorative book - no hover interaction, just visual
 function DecorativeBook({ position, color }: { position: [number, number, number]; color: string }) {
   const { BOOK_HEIGHT, BOOK_WIDTH, BOOK_DEPTH } = BOOK_CONSTANTS
+  // Rotate 90° on Y so spine faces outward, no tilt
   return (
-    <mesh position={position} rotation={[BOOK_LEAN, 0, 0]} castShadow receiveShadow>
+    <mesh position={position} rotation={[0, Math.PI / 2, 0]} castShadow receiveShadow>
       <boxGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, BOOK_DEPTH]} />
       <meshStandardMaterial color={color} roughness={0.7} metalness={0.1} />
     </mesh>
   )
 }
 
-// Side bookshelf with decorative books (non-interactive)
+// Side bookshelf with decorative books (non-interactive, spine-out)
 function SideBookshelf({
   position,
   rotation = [0, 0, 0],
@@ -292,38 +290,37 @@ function SideBookshelf({
   unitsWide?: number
 }) {
   const { UNIT_WIDTH, SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT } = BOOKSHELF_CONSTANTS
-  const { BOOK_WIDTH, BOOK_HEIGHT } = BOOK_CONSTANTS
+  const { BOOK_DEPTH, BOOK_HEIGHT } = BOOK_CONSTANTS
 
   const totalWidth = unitsWide * UNIT_WIDTH
   const totalHeight = SHELF_COUNT * SHELF_HEIGHT
-  const booksPerRow = unitsWide * BOOKS_PER_CELL
-  const bookGap = 0.08
+
+  // Spine-out: use BOOK_DEPTH for spacing (much thinner than BOOK_WIDTH)
+  const spineWidth = BOOK_DEPTH
+  const bookGap = 0.02
+  const booksPerRow = Math.floor(totalWidth / (spineWidth + bookGap))
 
   // Generate decorative book positions
   const decorativeBooks = useMemo(() => {
     const books: { position: [number, number, number]; color: string }[] = []
-    const totalBooks = booksPerRow * SHELF_COUNT
 
-    for (let i = 0; i < totalBooks; i++) {
-      const shelfRow = Math.floor(i / booksPerRow)
-      const indexInRow = i % booksPerRow
-      const unitCol = Math.floor(indexInRow / BOOKS_PER_CELL)
-      const posInUnit = indexInRow % BOOKS_PER_CELL
+    for (let shelfRow = 0; shelfRow < SHELF_COUNT; shelfRow++) {
+      for (let i = 0; i < booksPerRow; i++) {
+        // X position: spread across shelf width
+        const bookX = (i + 0.5) * (spineWidth + bookGap) - totalWidth / 2
 
-      const unitCenterX = (unitCol + 0.5) * UNIT_WIDTH - totalWidth / 2
-      const bookOffsetX = (posInUnit - 1) * (BOOK_WIDTH + bookGap)
-      const bookX = unitCenterX + bookOffsetX
+        // Y position
+        const shelfBaseY = shelfRow * SHELF_HEIGHT - totalHeight / 2 + SHELF_THICKNESS / 2
+        const bookY = shelfBaseY + BOOK_HEIGHT / 2 + 0.02
 
-      const shelfBaseY = shelfRow * SHELF_HEIGHT - totalHeight / 2 + SHELF_THICKNESS / 2
-      const bookY = shelfBaseY + BOOK_HEIGHT / 2 + 0.02
-
-      books.push({
-        position: [bookX, bookY, 0.05],
-        color: DECORATIVE_COLORS[(i * 3) % DECORATIVE_COLORS.length], // Different offset for variety
-      })
+        books.push({
+          position: [bookX, bookY, -0.15],  // Push back so rotated books don't protrude
+          color: DECORATIVE_COLORS[(shelfRow * booksPerRow + i) % DECORATIVE_COLORS.length],
+        })
+      }
     }
     return books
-  }, [UNIT_WIDTH, SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT, totalWidth, totalHeight, BOOK_WIDTH, BOOK_HEIGHT, booksPerRow])
+  }, [SHELF_HEIGHT, SHELF_THICKNESS, SHELF_COUNT, totalWidth, totalHeight, BOOK_HEIGHT, booksPerRow, spineWidth, bookGap])
 
   return (
     <group position={position} rotation={rotation}>
