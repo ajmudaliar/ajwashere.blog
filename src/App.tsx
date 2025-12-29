@@ -13,7 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<GameComponent />} />
         <Route path="/projects" element={<Projects />} />
-        <Route path="/readinglist" element={<ReadingList />} />
+        <Route path="/library" element={<ReadingList />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/travels" element={<Travels />} />
         <Route path="/admin/covers" element={<CoverManager />} />

@@ -133,7 +133,7 @@ export function GameComponent() {
                 projects
               </Link>
               <Link
-                to="/readinglist"
+                to="/library"
                 onClick={() => setMenuOpen(false)}
                 style={{
                   display: 'block',
