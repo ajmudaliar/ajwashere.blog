@@ -5,7 +5,7 @@ const path = require('path');
 const COVERS_DIR = path.join(__dirname, 'public/book-covers');
 const DATA_FILE = path.join(__dirname, 'cover-data.json');
 
-async function downloadCover(googleId, zoom = 1, suffix = '') {
+async function downloadCover(googleId, zoom = 2, suffix = '') {
   const url = 'https://books.google.com/books/content?id=' + googleId + '&printsec=frontcover&img=1&zoom=' + zoom;
   const filename = suffix ? googleId + suffix + '.jpg' : googleId + '.jpg';
   const dest = path.join(COVERS_DIR, filename);

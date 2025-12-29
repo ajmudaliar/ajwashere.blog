@@ -181,6 +181,7 @@ function BookWithCover({ book, position, coverId }: BookProps & { coverId: strin
 // Book without cover (text inscription)
 function BookWithText({ book, position }: BookProps) {
   const [hovered, setHovered] = useState(false)
+  const groupRef = useRef<THREE.Group>(null)
   const meshRef = useRef<THREE.Mesh>(null)
   const { selectedBookId, selectBook } = useBookSelection()
   const { camera } = useThree()
@@ -193,15 +194,28 @@ function BookWithText({ book, position }: BookProps) {
     return { x: 0, y: 0, z: cameraZ - 3 }
   }, [camera.position.z])
 
-  const { posX, posY, posZ, rotationX, rotationY, scale } = useSpring({
+  const { posX, posY, posZ, rotationX, scale } = useSpring({
     posX: isSelected ? centerPosition.x : position[0],
     posY: isSelected ? centerPosition.y : (hovered ? position[1] + 0.15 : position[1]),
     posZ: isSelected ? centerPosition.z : (hovered ? position[2] + 0.3 : position[2]),
     rotationX: isSelected ? 0 : (hovered ? -0.15 : BASE_LEAN),
-    rotationY: isSelected ? -0.3 : 0,
     scale: isSelected ? 2.5 : 1,
     config: { mass: 1, tension: 200, friction: 26 },
   })
+
+  // Slow rotation when selected
+  useFrame((_, delta) => {
+    if (groupRef.current && isSelected) {
+      groupRef.current.rotation.y += delta * 0.3
+    }
+  })
+
+  // Reset rotation when deselected
+  useEffect(() => {
+    if (!isSelected && groupRef.current) {
+      groupRef.current.rotation.y = 0
+    }
+  }, [isSelected])
 
   const displayTitle = truncate(book.title, 40)
   const displayAuthor = truncate(book.author, 25)
@@ -212,64 +226,65 @@ function BookWithText({ book, position }: BookProps) {
       position-y={posY}
       position-z={posZ}
       rotation-x={rotationX}
-      rotation-y={rotationY}
       scale={scale}
     >
-      <mesh
-        ref={meshRef}
-        castShadow
-        receiveShadow
-        onClick={(e) => {
-          e.stopPropagation()
-          selectBook(isSelected ? null : book)
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation()
-          if (!isSelected) setHovered(true)
-          document.body.style.cursor = 'pointer'
-        }}
-        onPointerOut={() => {
-          setHovered(false)
-          document.body.style.cursor = 'default'
-        }}
-      >
-        <boxGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, BOOK_DEPTH]} />
-        <meshStandardMaterial
-          color={book.color}
-          roughness={0.7}
-          metalness={0.1}
-        />
-      </mesh>
+      <group ref={groupRef}>
+        <mesh
+          ref={meshRef}
+          castShadow
+          receiveShadow
+          onClick={(e) => {
+            e.stopPropagation()
+            selectBook(isSelected ? null : book)
+          }}
+          onPointerOver={(e) => {
+            e.stopPropagation()
+            if (!isSelected) setHovered(true)
+            document.body.style.cursor = 'pointer'
+          }}
+          onPointerOut={() => {
+            setHovered(false)
+            document.body.style.cursor = 'default'
+          }}
+        >
+          <boxGeometry args={[BOOK_WIDTH, BOOK_HEIGHT, BOOK_DEPTH]} />
+          <meshStandardMaterial
+            color={book.color}
+            roughness={0.7}
+            metalness={0.1}
+          />
+        </mesh>
 
-      {/* Title text on cover */}
-      <Text
-        position={[0, 0.1, BOOK_DEPTH / 2 + 0.001]}
-        fontSize={0.055}
-        maxWidth={BOOK_WIDTH - 0.08}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        color={TITLE_COLOR}
-        outlineWidth={0.002}
-        outlineColor="#000000"
-      >
-        {displayTitle}
-      </Text>
+        {/* Title text on cover */}
+        <Text
+          position={[0, 0.1, BOOK_DEPTH / 2 + 0.001]}
+          fontSize={0.055}
+          maxWidth={BOOK_WIDTH - 0.08}
+          textAlign="center"
+          anchorX="center"
+          anchorY="middle"
+          color={TITLE_COLOR}
+          outlineWidth={0.002}
+          outlineColor="#000000"
+        >
+          {displayTitle}
+        </Text>
 
-      {/* Author text below title */}
-      <Text
-        position={[0, -0.2, BOOK_DEPTH / 2 + 0.001]}
-        fontSize={0.04}
-        maxWidth={BOOK_WIDTH - 0.08}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        color={AUTHOR_COLOR}
-        outlineWidth={0.001}
-        outlineColor="#000000"
-      >
-        {displayAuthor}
-      </Text>
+        {/* Author text below title */}
+        <Text
+          position={[0, -0.2, BOOK_DEPTH / 2 + 0.001]}
+          fontSize={0.04}
+          maxWidth={BOOK_WIDTH - 0.08}
+          textAlign="center"
+          anchorX="center"
+          anchorY="middle"
+          color={AUTHOR_COLOR}
+          outlineWidth={0.001}
+          outlineColor="#000000"
+        >
+          {displayAuthor}
+        </Text>
+      </group>
     </animated.group>
   )
 }
