@@ -111,16 +111,26 @@ const PLACEHOLDER_COUNT = Math.max(0, TOTAL_SLOTS - SHELF_BOOKS.length)
 
 // Placeholder book variants
 const PLACEHOLDER_TITLES = [
-  'My little library',
-  'Books I\'ll read',
-  'Someday...',
-  'On the list',
-  'Future reads',
-  'To be read',
-  'Coming soon',
-  'Next up',
-  'In the queue',
-  'Wishlist',
+  'The Art of Procrastination',
+  'I\'ll Start Tomorrow',
+  'Infinite Backlog',
+  'The Unread',
+  'Dust Collector\'s Guide',
+  'Optimistic Intentions',
+  'One Day, Perhaps',
+  'The Shelf Awaits',
+  'Good Intentions Vol. 3',
+  'Buy Now, Read Never',
+  'Aspirational Reading',
+  'The Tsundoku Way',
+  'Hopeful Spines',
+  'Future Me\'s Problem',
+  'The Waiting List',
+  'Ambitious Purchases',
+  'Someday Isle',
+  'The Guilt Shelf',
+  'Dreams of Free Time',
+  'Next Life Reading',
 ]
 
 const PLACEHOLDER_COLORS = [
@@ -129,11 +139,20 @@ const PLACEHOLDER_COLORS = [
   '#7A5C47', '#5B6B5B', '#6B4B5B', '#5A5A6B', '#6B6B5A',
 ]
 
+const PLACEHOLDER_AUTHORS = [
+  'Future Self',
+  'Wishful Thinking',
+  'Good Intentions',
+  'The Optimist',
+  'Someday Soon',
+  'Best Laid Plans',
+]
+
 // Generate placeholder books for empty spaces
 const PLACEHOLDER_BOOKS: BookType[] = Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => ({
   id: `placeholder-${i}`,
   title: PLACEHOLDER_TITLES[i % PLACEHOLDER_TITLES.length],
-  author: 'ajay',
+  author: PLACEHOLDER_AUTHORS[i % PLACEHOLDER_AUTHORS.length],
   status: 'Have not started' as const,
   color: PLACEHOLDER_COLORS[i % PLACEHOLDER_COLORS.length],
 }))
