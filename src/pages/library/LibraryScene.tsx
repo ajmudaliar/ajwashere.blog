@@ -1,8 +1,8 @@
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { BookshelfWall, BookshelfWithAlcove, BOOKSHELF_CONSTANTS } from './Bookshelf'
-import { Book, BOOK_CONSTANTS } from './Book'
+import { Book, BOOK_CONSTANTS, BookSelectionProvider } from './Book'
 import type { Book as BookType } from './types'
 import { BOOKS_BY_STATUS, FEATURED_BOOK } from './reading-list'
 
@@ -644,21 +644,83 @@ function Scene() {
   )
 }
 
-export function LibraryScene() {
-  const cameraZ = 8
+// Book details overlay
+function BookDetailsOverlay({
+  book,
+  onClose
+}: {
+  book: BookType | null
+  onClose: () => void
+}) {
+  if (!book) return null
 
   return (
-    <Canvas
-      shadows
-      camera={{
-        position: [0, 0, cameraZ],
-        fov: 60, // Wider FOV to see side shelves
-        near: 0.1,
-        far: 100,
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'auto',
+        zIndex: 100,
       }}
-      style={{ width: '100vw', height: '100vh' }}
     >
-      <Scene />
-    </Canvas>
+      {/* Details card - positioned to the right of center */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute',
+          right: '10%',
+          background: 'rgba(30, 25, 20, 0.95)',
+          borderRadius: '12px',
+          padding: '2rem',
+          maxWidth: '320px',
+          color: '#f5f0e8',
+          border: '1px solid rgba(139, 105, 20, 0.3)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}
+      >
+        <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.4rem', color: '#d4c4a8' }}>
+          {book.title}
+        </h2>
+        <p style={{ margin: '0', opacity: 0.7, fontSize: '1rem' }}>
+          by {book.author}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+export function LibraryScene() {
+  const cameraZ = 8
+  const [selectedBook, setSelectedBook] = useState<BookType | null>(null)
+
+  const selectionContext = useMemo(() => ({
+    selectedBookId: selectedBook?.id ?? null,
+    selectBook: setSelectedBook,
+  }), [selectedBook])
+
+  return (
+    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+      <Canvas
+        shadows
+        camera={{
+          position: [0, 0, cameraZ],
+          fov: 60,
+          near: 0.1,
+          far: 100,
+        }}
+        style={{ width: '100%', height: '100%' }}
+        onPointerMissed={() => setSelectedBook(null)}
+      >
+        <BookSelectionProvider value={selectionContext}>
+          <Scene />
+        </BookSelectionProvider>
+      </Canvas>
+
+      <BookDetailsOverlay book={selectedBook} onClose={() => setSelectedBook(null)} />
+    </div>
   )
 }

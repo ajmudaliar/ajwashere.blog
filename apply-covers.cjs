@@ -5,17 +5,18 @@ const path = require('path');
 const COVERS_DIR = path.join(__dirname, 'public/book-covers');
 const DATA_FILE = path.join(__dirname, 'cover-data.json');
 
-async function downloadCover(googleId) {
-  const url = 'https://books.google.com/books/content?id=' + googleId + '&printsec=frontcover&img=1&zoom=1';
-  const dest = path.join(COVERS_DIR, googleId + '.jpg');
+async function downloadCover(googleId, zoom = 1, suffix = '') {
+  const url = 'https://books.google.com/books/content?id=' + googleId + '&printsec=frontcover&img=1&zoom=' + zoom;
+  const filename = suffix ? googleId + suffix + '.jpg' : googleId + '.jpg';
+  const dest = path.join(COVERS_DIR, filename);
 
   // Skip if already exists
   if (fs.existsSync(dest)) {
-    console.log('  Skipping (exists):', googleId);
+    console.log('  Skipping (exists):', filename);
     return;
   }
 
-  console.log('  Downloading:', googleId);
+  console.log('  Downloading:', filename);
 
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest);

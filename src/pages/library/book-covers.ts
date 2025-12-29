@@ -93,3 +93,8 @@ export function hasCover(googleBooksId: string | undefined): boolean {
 export function getBookCoverPath(googleBooksId: string): string {
   return `/book-covers/${googleBooksId}.jpg`
 }
+
+// Get high-res book cover path (for expanded view)
+export function getHighResCoverPath(googleBooksId: string): string {
+  return `/book-covers/${googleBooksId}-hires.jpg`
+}
