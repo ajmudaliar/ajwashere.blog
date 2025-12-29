@@ -124,8 +124,9 @@ const PLACEHOLDER_TITLES = [
 ]
 
 const PLACEHOLDER_COLORS = [
-  '#3D3530', '#4A3F35', '#3A3530', '#453D38', '#3D3835',
-  '#4A4540', '#3F3A35', '#454038', '#3D3A35', '#484340',
+  '#8B4513', '#6B4423', '#4A5568', '#7B3F3F', '#5D4E37',
+  '#4A6B5D', '#6B5B4F', '#5C4A4A', '#4F5B6B', '#6B5F4A',
+  '#7A5C47', '#5B6B5B', '#6B4B5B', '#5A5A6B', '#6B6B5A',
 ]
 
 // Generate placeholder books for empty spaces
