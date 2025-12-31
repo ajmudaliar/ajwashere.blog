@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, createContext, useContext } from 'react'
 import { useSpring, animated } from '@react-spring/three'
-import { Text, useTexture, Html } from '@react-three/drei'
+import { Text, useTexture } from '@react-three/drei'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Book as BookType } from './types'
@@ -101,7 +101,8 @@ function BookWithCover({ book, position, coverId }: BookProps & { coverId: strin
 
   // Load the cover texture
   const texture = useTexture(coverUrl)
-  const pagesTexture = useMemo(() => getPagesTexture(), [])
+  // Pages texture available for future use
+  useMemo(() => getPagesTexture(), [])
 
   // Configure texture
   useMemo(() => {

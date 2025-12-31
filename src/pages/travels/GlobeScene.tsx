@@ -146,7 +146,7 @@ export function Globe({ onLocationClick, targetLocation, onTargetReached }: Glob
 
   // Animation loop
   const baseDistance = 300
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (!groupRef.current) return
 
     // If we have a target rotation, smoothly rotate towards it
