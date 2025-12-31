@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Volume2, VolumeX } from 'lucide-react'
 import Phaser from 'phaser'
 import { IslandScene } from './scenes/IslandScene'
 
@@ -21,6 +22,7 @@ export function GameComponent() {
   const containerRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [muted, setMuted] = useState(false)
 
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {
@@ -63,6 +65,41 @@ export function GameComponent() {
           zIndex: 1000,
         }}
       >
+        {/* Mute Button */}
+        <button
+          onClick={() => {
+            setMuted(!muted)
+            window.dispatchEvent(new CustomEvent('toggleMusic'))
+          }}
+          style={{
+            fontSize: '18px',
+            fontFamily: 'system-ui',
+            color: '#333',
+            background: '#fff',
+            padding: '6px 10px',
+            borderRadius: '4px',
+            boxShadow: '4px 4px 0px #333',
+            fontWeight: 'bold',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '36px',
+            transition: 'transform 0.1s, box-shadow 0.1s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translate(-2px, -2px)'
+            e.currentTarget.style.boxShadow = '6px 6px 0px #333'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translate(0, 0)'
+            e.currentTarget.style.boxShadow = '4px 4px 0px #333'
+          }}
+        >
+          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
         {/* Burger Menu */}
         <div ref={menuRef} style={{ position: 'relative' }}>
           <button
@@ -114,41 +151,32 @@ export function GameComponent() {
                 minWidth: '140px',
               }}
             >
-              <Link
-                to="/projects"
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  display: 'block',
-                  padding: '10px 16px',
-                  fontSize: '14px',
-                  fontFamily: 'system-ui',
-                  color: '#333',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  borderBottom: '1px solid #eee',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
-              >
-                projects
-              </Link>
-              <Link
-                to="/library"
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  display: 'block',
-                  padding: '10px 16px',
-                  fontSize: '14px',
-                  fontFamily: 'system-ui',
-                  color: '#333',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
-              >
-                reading list
-              </Link>
+              {[
+                { to: '/projects', label: 'projects' },
+                { to: '/library', label: 'library' },
+                { to: '/blog', label: 'blog' },
+                { to: '/travels', label: 'travels' },
+              ].map((item, index, arr) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    display: 'block',
+                    padding: '10px 16px',
+                    fontSize: '14px',
+                    fontFamily: 'system-ui',
+                    color: '#333',
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    borderBottom: index < arr.length - 1 ? '1px solid #eee' : 'none',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
+                >
+                  {item.label}
+                </Link>
+              ))}
             </div>
           )}
         </div>

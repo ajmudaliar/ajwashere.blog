@@ -712,6 +712,9 @@ export class IslandScene extends Phaser.Scene {
     // Listen for logo click from UI
     window.addEventListener('logoClicked', () => this.showLogoReply())
 
+    // Listen for music toggle from UI
+    window.addEventListener('toggleMusic', () => this.toggleMusic())
+
     // Create dialogue zones
     const getPlayerPos = () => ({ x: this.player.x, y: this.player.y })
     for (const [, config] of Object.entries(DIALOGUE_ZONES_CONFIG)) {
@@ -736,6 +739,16 @@ export class IslandScene extends Phaser.Scene {
     if (!this.musicStarted) {
       this.musicStarted = true
       this.bgMusic.play()
+    }
+  }
+
+  private toggleMusic() {
+    if (this.bgMusic.isPlaying) {
+      this.bgMusic.pause()
+    } else if (this.musicStarted) {
+      this.bgMusic.resume()
+    } else {
+      this.startMusic()
     }
   }
 
