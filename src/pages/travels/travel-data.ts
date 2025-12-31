@@ -45,6 +45,7 @@ export const TRAVELED_LOCATIONS: TraveledLocation[] = [
   { id: 'singapore-mtl', name: 'Singapore', country: 'Singapore', lat: 1.35, lng: 103.82, type: 'traveled', fromId: 'montreal' },
   { id: 'tokyo', name: 'Tokyo', country: 'Japan', lat: 35.68, lng: 139.69, type: 'traveled', fromId: 'montreal' },
   { id: 'new-york', name: 'New York', country: 'USA', lat: 40.71, lng: -74.01, type: 'traveled', fromId: 'montreal' },
+  { id: 'halifax', name: 'Halifax', country: 'Canada', lat: 44.65, lng: -63.57, type: 'traveled', fromId: 'montreal' },
 
   // From Delhi
   { id: 'singapore-del', name: 'Singapore', country: 'Singapore', lat: 1.35, lng: 103.82, type: 'traveled', fromId: 'delhi' },
@@ -80,6 +81,7 @@ export const UNIQUE_TRAVELED_LOCATIONS: Location[] = [
   { id: 'london', name: 'London', country: 'UK', lat: 51.51, lng: -0.13, type: 'traveled' },
   { id: 'new-york', name: 'New York', country: 'USA', lat: 40.71, lng: -74.01, type: 'traveled' },
   { id: 'nairobi', name: 'Nairobi', country: 'Kenya', lat: -1.29, lng: 36.82, type: 'traveled' },
+  { id: 'halifax', name: 'Halifax', country: 'Canada', lat: 44.65, lng: -63.57, type: 'traveled' },
 ]
 
 export const ALL_LOCATIONS = [...LIVED_LOCATIONS, ...UNIQUE_TRAVELED_LOCATIONS]
