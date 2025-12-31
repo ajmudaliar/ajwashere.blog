@@ -125,7 +125,7 @@ const GID_TO_KEY: Record<number, string> = {
 // Interactive buildings config
 const INTERACTIVE_BUILDINGS: Record<string, { label: string; section: string; offsetX?: number; offsetY?: number }> = {
   'obj_tower_bluewood_1_3': { label: 'Projects and stuff', section: 'projects', offsetX: 15, offsetY: 160 },
-  'obj_marketstand_2_yellow': { label: 'What I\'m reading', section: 'readinglist', offsetY: 30 },
+  'obj_marketstand_2_yellow': { label: 'My little library', section: 'library', offsetY: 30 },
   'obj_bulletinboard_2': { label: 'Blog', section: 'blog', offsetY: 10 },
 }
 

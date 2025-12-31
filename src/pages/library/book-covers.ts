@@ -1,0 +1,100 @@
+// IDs of books with actual covers
+export const AVAILABLE_COVERS_LIST = [
+  'Bhd-BAAAQBAJ',
+  'dwAwSzmTHNEC',
+  'JSgOSP1qklUC',
+  'mbobFPY4W1sC',
+  'NV2rAgAAQBAJ',
+  'qBjBEAAAQBAJ',
+  'T16eBAAAQBAJ',
+  'UCryDwAAQBAJ',
+  'vbMIlkpQXEkC',
+  'SRnBEAAAQBAJ',
+  'a7GfEAAAQBAJ',
+  'TA7Q27RWlj0C',
+  'p0c0nEx-8TcC',
+  'gWW4SkJjM08C',
+  '5dfv0HJ1TEoC',
+  'Tx92CgAAQBAJ',
+  'LWNQ2_4wkocC',
+  '_gA_DwAAQBAJ',
+  'fFCjDQAAQBAJ',
+  'XgksEQAAQBAJ',
+  '3PabEAAAQBAJ',
+  'UhxPDwAAQBAJ',
+  'teu4ubljIfQC',
+  'cbGfEAAAQBAJ',
+  'ZH4oAwAAQBAJ',
+  '0l1CEQAAQBAJ',
+  '73wp7OGyZbAC',
+  '5AwIEAAAQBAJ',
+  'aAV6wV4Rn00C',
+  '2yR0AwAAQBAJ',
+  'ZxnBEAAAQBAJ',
+  'Kg5ODwAAQBAJ',
+  'TPttAwAAQBAJ',
+  'xiDoHGtihF8C',
+  '2unAEAAAQBAJ',
+  '9oI1EAAAQBAJ',
+  'NEqlEAAAQBAJ',
+  'HHJVIpbpSgsC',
+  'HmvWEAAAQBAJ',
+  'aLiJ-8W_ttkC',
+  'WTBA-wzX7cwC',
+  'kwnLdtIfhh0C',
+  'u873DwAAQBAJ',
+  'RZVNCVpyuIcC',
+  'F1uB4FQxK_oC',
+  'wO3PCgAAQBAJ',
+  'Qes6DwAAQBAJ',
+  'b-o_K_AFJiUC',
+  '-QC3TyfN3zoC',
+  'j24GMN0OtS8C',
+  'Z7GfEAAAQBAJ',
+  'q_R8DwAAQBAJ',
+  'ycEKAgAAQBAJ',
+  'sR3hAAAAQBAJ',
+  'RMd3GpIFxcUC',
+  'duj8DwAAQBAJ',
+  'p_lADwAAQBAJ',
+  'VznTCwAAQBAJ',
+  'EOQnl_q1QCkC',
+  'IwywDY4P6gsC',
+  '-VU0AgAAQBAJ',
+  'achqDwAAQBAJ',
+  '9TtEYz9Lw4kC',
+  'YY4EAAAAYAAJ',
+  'fpFbuCKOLKwC',
+  'M77RDwAAQBAJ',
+  '4UCnDQAAQBAJ',
+  'F5PxCgAAQBAJ',
+  's5MaAAAAYAAJ',
+  'Q5ZdDwAAQBAJ',
+  'zDwx8nViavoC',
+  'r1U0AgAAQBAJ',
+  '5E5o3_y5TpAC',
+  'cQNwDwAAQBAJ',
+  'QVjPsd1UukEC',
+  'sb0PAAAAQBAJ',
+  'xB2ZDwAAQBAJ',
+  'yxfJDVXClucC',
+  'nozuEAAAQBAJ',
+  'YoVpW0zJIgYC',
+]
+
+const AVAILABLE_COVERS = new Set(AVAILABLE_COVERS_LIST)
+
+// Check if a book has a real cover available
+export function hasCover(googleBooksId: string | undefined): boolean {
+  return !!googleBooksId && AVAILABLE_COVERS.has(googleBooksId)
+}
+
+// Get local book cover path (pre-downloaded from Google Books)
+export function getBookCoverPath(googleBooksId: string): string {
+  return `/book-covers/${googleBooksId}.jpg`
+}
+
+// Get high-res book cover path (for expanded view)
+export function getHighResCoverPath(googleBooksId: string): string {
+  return `/book-covers/${googleBooksId}-hires.jpg`
+}
