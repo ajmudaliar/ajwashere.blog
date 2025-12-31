@@ -71,14 +71,14 @@ export function Travels() {
           left: '2rem',
           color: '#10b981',
           textDecoration: 'none',
-          fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+          fontFamily: "'SF Mono', 'Fira Code', monospace",
           fontSize: '0.9rem',
           padding: '0.5rem 1rem',
           border: '1px solid rgba(16, 185, 129, 0.3)',
           borderRadius: '4px',
           background: 'rgba(10, 10, 18, 0.8)',
           transition: 'all 0.2s ease',
-          zIndex: 50,
+          zIndex: 100,
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'
@@ -150,7 +150,7 @@ export function Travels() {
           position: 'absolute',
           bottom: '2rem',
           left: '2rem',
-          fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+          fontFamily: "'SF Mono', 'Fira Code', monospace",
           fontSize: '0.75rem',
           color: 'rgba(255, 255, 255, 0.6)',
           zIndex: 50,

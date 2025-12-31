@@ -108,8 +108,9 @@ export function Globe({ onLocationClick, targetLocation, onTargetReached }: Glob
     g.arcEndLat('endLat')
     g.arcEndLng('endLng')
     g.arcColor('color')
+    g.arcStroke(0.5)
     g.arcDashLength(0.4)
-    g.arcDashGap(4)
+    g.arcDashGap(3)
     g.arcDashInitialGap(() => Math.random() * 5)
     g.arcDashAnimateTime(1000)
 

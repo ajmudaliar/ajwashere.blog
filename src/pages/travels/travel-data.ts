@@ -58,6 +58,12 @@ export const TRAVELED_LOCATIONS: TraveledLocation[] = [
 
   // From Manchester
   { id: 'london', name: 'London', country: 'UK', lat: 51.51, lng: -0.13, type: 'traveled', fromId: 'manchester' },
+  { id: 'vancouver-from-manchester', name: 'Vancouver', country: 'Canada', lat: 49.28, lng: -123.12, type: 'traveled', fromId: 'manchester' },
+
+  // Between homes
+  { id: 'manchester-from-chennai', name: 'Manchester', country: 'UK', lat: 53.48, lng: -2.24, type: 'traveled', fromId: 'chennai' },
+  { id: 'bangalore-from-montreal', name: 'Bangalore', country: 'India', lat: 12.97, lng: 77.59, type: 'traveled', fromId: 'montreal' },
+  { id: 'vancouver-from-montreal', name: 'Vancouver', country: 'Canada', lat: 49.28, lng: -123.12, type: 'traveled', fromId: 'montreal' },
 ]
 
 // Generate arcs from each trip's origin to destination
