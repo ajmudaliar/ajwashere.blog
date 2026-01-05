@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Globe } from './travels/GlobeScene'
 import { JourneySidebar } from './travels/JourneySidebar'
 import { LIVED_LOCATIONS, UNIQUE_TRAVELED_LOCATIONS, type Location } from './travels/travel-data'
@@ -15,10 +16,15 @@ const countriesTraveled = [...new Set(UNIQUE_TRAVELED_LOCATIONS.map(l => l.count
 export function Travels() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [targetLocation, setTargetLocation] = useState<Location | null>(null)
+  const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const handleLocationSelect = (location: Location) => {
     setSelectedLocation(location)
     setTargetLocation(location)
+    // Reset camera to default position so globe rotation works correctly
+    if (controlsRef.current) {
+      controlsRef.current.reset()
+    }
   }
 
   return (
@@ -47,6 +53,7 @@ export function Travels() {
           onTargetReached={() => setTargetLocation(null)}
         />
         <OrbitControls
+          ref={controlsRef}
           enableZoom={true}
           enablePan={false}
           minDistance={150}

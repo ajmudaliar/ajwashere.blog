@@ -98,7 +98,7 @@ export function GameComponent() {
             e.currentTarget.style.boxShadow = '4px 4px 0px #333'
           }}
         >
-          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          {muted ? <Volume2 size={20} /> : <VolumeX size={20} />}
         </button>
         {/* Burger Menu */}
         <div ref={menuRef} style={{ position: 'relative' }}>
@@ -152,7 +152,7 @@ export function GameComponent() {
               }}
             >
               {[
-                { to: '/projects', label: 'projects' },
+                { to: '/projects', label: 'Things i\'m working on' },
                 { to: '/library', label: 'library' },
                 { to: '/blog', label: 'blog' },
                 { to: '/travels', label: 'travels' },

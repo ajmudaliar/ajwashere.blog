@@ -124,7 +124,7 @@ const GID_TO_KEY: Record<number, string> = {
 
 // Interactive buildings config
 const INTERACTIVE_BUILDINGS: Record<string, { label: string; section: string; offsetX?: number; offsetY?: number }> = {
-  'obj_tower_bluewood_1_3': { label: 'Projects and stuff', section: 'projects', offsetX: 15, offsetY: 160 },
+  'obj_tower_bluewood_1_3': { label: 'Things i\'m working on', section: 'projects', offsetX: 15, offsetY: 160 },
   'obj_marketstand_2_yellow': { label: 'My little library', section: 'library', offsetY: 30 },
   'obj_bulletinboard_2': { label: 'Blog', section: 'blog', offsetY: 10 },
 }
@@ -899,7 +899,7 @@ export class IslandScene extends Phaser.Scene {
   private welcomeMessages = [
     'Heyho friend!',
     'Welcome to my cozy corner\nof the internet.',
-    'Feel free to roam around\nusing WASD and press E\nto interact with venues.',
+    'Feel free to roam around\nusing WASD or arrow keys\nand press E to interact.',
   ]
   private currentMessageIndex = 0
 
