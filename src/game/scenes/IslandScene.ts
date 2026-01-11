@@ -311,12 +311,27 @@ class DialogueZone {
   }
 }
 
+// A* pathfinding node
+interface PathNode {
+  x: number
+  y: number
+  g: number  // cost from start
+  h: number  // heuristic (estimated cost to end)
+  f: number  // total cost (g + h)
+  parent: PathNode | null
+}
+
 export class IslandScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Sprite
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key }
   private moveSpeed = 100
   private currentDirection = 'down'
+
+  // Click-to-move pathfinding
+  private currentPath: { x: number; y: number }[] = []
+  private pathIndex = 0
+  private isFollowingPath = false
   private map!: Phaser.Tilemaps.Tilemap
   private buildingMarkers: Phaser.GameObjects.Container[] = []
   private interactiveZones: { x: number; y: number; section: string; label: string }[] = []
@@ -499,6 +514,16 @@ export class IslandScene extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     })
+
+    // NPC sprites (palette swapped version)
+    this.load.spritesheet('npc_walk', '/assets/game/sprites/npc_walk.png', {
+      frameWidth: 40,
+      frameHeight: 48,
+    })
+    this.load.spritesheet('npc_idle', '/assets/game/sprites/npc_idle.png', {
+      frameWidth: 40,
+      frameHeight: 48,
+    })
   }
 
   create() {
@@ -593,8 +618,8 @@ export class IslandScene extends Phaser.Scene {
     // Add NPC (me) standing near the red house
     const npcX = 6 * 16 + 12
     const npcY = 26 * 16 + 16
-    this.npc = this.add.sprite(npcX, npcY, 'character_idle')
-    this.npc.play('idle_right')
+    this.npc = this.add.sprite(npcX, npcY, 'npc_idle')
+    this.npc.play('npc_idle_right')
     this.npc.setScale(1)
     this.npc.setDepth(npcY)
 
@@ -705,6 +730,16 @@ export class IslandScene extends Phaser.Scene {
     // Start music on first interaction
     this.input.once('pointerdown', () => this.startMusic())
     this.input.keyboard!.once('keydown', () => this.startMusic())
+
+    // Click-to-move: handle pointer clicks for pathfinding
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Ignore if clicking on UI elements (handled by DOM)
+      if (pointer.downElement !== this.game.canvas) return
+
+      // Convert screen coordinates to world coordinates
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
+      this.handleClickToMove(worldPoint.x, worldPoint.y)
+    })
 
     // Add particle effects (fireflies + falling leaves)
     this.createParticleEffects()
@@ -1055,6 +1090,16 @@ export class IslandScene extends Phaser.Scene {
       frameRate: 4,
       repeat: -1
     })
+
+    // NPC animations (same frame layout as player)
+    for (const [dir, [start, end]] of Object.entries(idleFrames)) {
+      this.anims.create({
+        key: `npc_idle_${dir}`,
+        frames: this.anims.generateFrameNumbers('npc_idle', { start, end }),
+        frameRate: 6,
+        repeat: -1
+      })
+    }
   }
 
   private createBuildingMarkers(buildings: { x: number; y: number; height: number; key: string }[]) {
@@ -1224,15 +1269,58 @@ export class IslandScene extends Phaser.Scene {
     let velocityX = 0, velocityY = 0, isMoving = false
     let newDirection = this.currentDirection
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      velocityX = -this.moveSpeed; newDirection = 'left'; isMoving = true
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      velocityX = this.moveSpeed; newDirection = 'right'; isMoving = true
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      velocityY = -this.moveSpeed; newDirection = 'up'; isMoving = true
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      velocityY = this.moveSpeed; newDirection = 'down'; isMoving = true
+    // Check for keyboard input (cancels pathfinding)
+    const keyboardActive = this.cursors.left.isDown || this.wasd.A.isDown ||
+                           this.cursors.right.isDown || this.wasd.D.isDown ||
+                           this.cursors.up.isDown || this.wasd.W.isDown ||
+                           this.cursors.down.isDown || this.wasd.S.isDown
+
+    if (keyboardActive) {
+      // Cancel any active pathfinding when keyboard is used
+      if (this.isFollowingPath) {
+        this.stopPathfinding()
+      }
+
+      // Handle keyboard movement
+      if (this.cursors.left.isDown || this.wasd.A.isDown) {
+        velocityX = -this.moveSpeed; newDirection = 'left'; isMoving = true
+      } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+        velocityX = this.moveSpeed; newDirection = 'right'; isMoving = true
+      }
+      if (this.cursors.up.isDown || this.wasd.W.isDown) {
+        velocityY = -this.moveSpeed; newDirection = 'up'; isMoving = true
+      } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+        velocityY = this.moveSpeed; newDirection = 'down'; isMoving = true
+      }
+    } else if (this.isFollowingPath && this.currentPath.length > 0) {
+      // Handle click-to-move pathfinding
+      const target = this.currentPath[this.pathIndex]
+      const dx = target.x - this.player.x
+      const dy = target.y - this.player.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      if (distance < 4) {
+        // Reached current waypoint, move to next
+        this.pathIndex++
+        if (this.pathIndex >= this.currentPath.length) {
+          // Reached final destination
+          this.stopPathfinding()
+        }
+      } else {
+        // Move toward current waypoint
+        const dirX = dx / distance
+        const dirY = dy / distance
+        velocityX = dirX * this.moveSpeed
+        velocityY = dirY * this.moveSpeed
+        isMoving = true
+
+        // Update direction based on primary movement axis
+        if (Math.abs(dx) > Math.abs(dy)) {
+          newDirection = dx > 0 ? 'right' : 'left'
+        } else {
+          newDirection = dy > 0 ? 'down' : 'up'
+        }
+      }
     }
 
     const anim = isMoving ? `walk_${newDirection}` : `idle_${this.currentDirection}`
@@ -1257,6 +1345,10 @@ export class IslandScene extends Phaser.Scene {
         this.player.x = newX
       } else if (this.canMoveTo(this.player.x, newY)) {
         this.player.y = newY
+      }
+      // If we hit a wall during pathfinding, stop
+      if (this.isFollowingPath) {
+        this.stopPathfinding()
       }
     }
 
@@ -1600,5 +1692,278 @@ export class IslandScene extends Phaser.Scene {
 
     // Check collision map
     return this.collisionMap[tileY]?.[tileX] ?? false
+  }
+
+  // ==================== Click-to-Move Pathfinding ====================
+
+  private handleClickToMove(targetX: number, targetY: number) {
+    // Convert to tile coordinates
+    const startTileX = Math.floor(this.player.x / 16)
+    const startTileY = Math.floor(this.player.y / 16)
+    const endTileX = Math.floor(targetX / 16)
+    const endTileY = Math.floor(targetY / 16)
+
+    // Check if target is walkable
+    if (!this.isTileWalkable(endTileX, endTileY)) {
+      // Find nearest walkable tile to target
+      const nearestWalkable = this.findNearestWalkableTile(endTileX, endTileY)
+      if (nearestWalkable) {
+        this.calculateAndFollowPath(startTileX, startTileY, nearestWalkable.x, nearestWalkable.y, targetX, targetY)
+      }
+      return
+    }
+
+    this.calculateAndFollowPath(startTileX, startTileY, endTileX, endTileY, targetX, targetY)
+  }
+
+  private calculateAndFollowPath(startX: number, startY: number, endX: number, endY: number, worldTargetX: number, worldTargetY: number) {
+    // Run A* pathfinding
+    const path = this.findPath(startX, startY, endX, endY)
+
+    if (path && path.length > 0) {
+      // Convert tile path to world coordinates (center of each tile)
+      this.currentPath = path.map(p => ({
+        x: p.x * 16 + 8,
+        y: p.y * 16 + 8
+      }))
+      this.pathIndex = 0
+      this.isFollowingPath = true
+
+      // Show click marker at destination
+      this.showClickMarker(worldTargetX, worldTargetY)
+    }
+  }
+
+  private destinationMarker: Phaser.GameObjects.Container | null = null
+  private destinationArrow: Phaser.GameObjects.Container | null = null
+  private destinationMarkerTween: Phaser.Tweens.Tween | null = null
+  private destinationArrowTween: Phaser.Tweens.Tween | null = null
+
+  private showClickMarker(x: number, y: number) {
+    // Remove existing marker
+    this.hideDestinationMarker()
+
+    // Create container for the ground ring marker
+    this.destinationMarker = this.add.container(x, y)
+    this.destinationMarker.setDepth(50) // Below player but above ground
+
+    // Create pulsing ring on the ground
+    const outerRing = this.add.graphics()
+    outerRing.lineStyle(2, 0x88ddff, 0.8) // Cyan
+    outerRing.strokeCircle(0, 0, 10)
+
+    const innerRing = this.add.graphics()
+    innerRing.lineStyle(1.5, 0xffffff, 0.6) // White inner
+    innerRing.strokeCircle(0, 0, 5)
+
+    // Small center dot
+    const centerDot = this.add.graphics()
+    centerDot.fillStyle(0xffffff, 0.8)
+    centerDot.fillCircle(0, 0, 2)
+
+    this.destinationMarker.add([outerRing, innerRing, centerDot])
+
+    // Add pulsing animation (scale)
+    this.destinationMarkerTween = this.tweens.add({
+      targets: this.destinationMarker,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      alpha: 0.5,
+      duration: 600,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+
+    // Create floating arrow above
+    const arrowY = y - 20
+    this.destinationArrow = this.add.container(x, arrowY)
+    this.destinationArrow.setDepth(20000)
+    this.destinationArrow.setScale(0.7) // Smaller than building markers
+
+    // Draw blue arrow
+    const arrow = this.add.graphics()
+    arrow.fillStyle(0x44aaff, 1) // Blue
+    arrow.lineStyle(1.5, 0x000000, 0.4) // Subtle outline
+
+    arrow.beginPath()
+    arrow.moveTo(0, 8)      // Bottom point
+    arrow.lineTo(-6, -2)    // Top left
+    arrow.lineTo(-3, -2)    // Inner left
+    arrow.lineTo(-3, -8)    // Stem top left
+    arrow.lineTo(3, -8)     // Stem top right
+    arrow.lineTo(3, -2)     // Inner right
+    arrow.lineTo(6, -2)     // Top right
+    arrow.closePath()
+    arrow.fillPath()
+    arrow.strokePath()
+
+    this.destinationArrow.add(arrow)
+
+    // Add bouncing animation
+    this.destinationArrowTween = this.tweens.add({
+      targets: this.destinationArrow,
+      y: arrowY - 5,
+      duration: 400,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+  }
+
+  private hideDestinationMarker() {
+    if (this.destinationMarkerTween) {
+      this.destinationMarkerTween.destroy()
+      this.destinationMarkerTween = null
+    }
+    if (this.destinationMarker) {
+      this.destinationMarker.destroy()
+      this.destinationMarker = null
+    }
+    if (this.destinationArrowTween) {
+      this.destinationArrowTween.destroy()
+      this.destinationArrowTween = null
+    }
+    if (this.destinationArrow) {
+      this.destinationArrow.destroy()
+      this.destinationArrow = null
+    }
+  }
+
+  private isTileWalkable(tileX: number, tileY: number): boolean {
+    if (tileX < 0 || tileX >= this.mapWidthTiles || tileY < 0 || tileY >= this.mapHeightTiles) {
+      return false
+    }
+    return this.collisionMap[tileY]?.[tileX] ?? false
+  }
+
+  private findNearestWalkableTile(tileX: number, tileY: number): { x: number; y: number } | null {
+    // Search in expanding squares around the target
+    for (let radius = 1; radius <= 10; radius++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue // Only check perimeter
+          const checkX = tileX + dx
+          const checkY = tileY + dy
+          if (this.isTileWalkable(checkX, checkY)) {
+            return { x: checkX, y: checkY }
+          }
+        }
+      }
+    }
+    return null
+  }
+
+  // A* pathfinding implementation
+  private findPath(startX: number, startY: number, endX: number, endY: number): { x: number; y: number }[] | null {
+    // Early exit if start or end is not walkable
+    if (!this.isTileWalkable(startX, startY) || !this.isTileWalkable(endX, endY)) {
+      return null
+    }
+
+    const openSet: PathNode[] = []
+    const closedSet = new Set<string>()
+
+    const heuristic = (x: number, y: number) => {
+      // Manhattan distance with diagonal movement consideration
+      return Math.abs(x - endX) + Math.abs(y - endY)
+    }
+
+    const startNode: PathNode = {
+      x: startX,
+      y: startY,
+      g: 0,
+      h: heuristic(startX, startY),
+      f: heuristic(startX, startY),
+      parent: null
+    }
+
+    openSet.push(startNode)
+
+    // Direction offsets: 4-directional movement (no diagonals for cleaner paths)
+    const directions = [
+      { dx: 0, dy: -1 }, // up
+      { dx: 0, dy: 1 },  // down
+      { dx: -1, dy: 0 }, // left
+      { dx: 1, dy: 0 },  // right
+    ]
+
+    while (openSet.length > 0) {
+      // Find node with lowest f score
+      let lowestIndex = 0
+      for (let i = 1; i < openSet.length; i++) {
+        if (openSet[i].f < openSet[lowestIndex].f) {
+          lowestIndex = i
+        }
+      }
+
+      const current = openSet[lowestIndex]
+
+      // Check if we reached the goal
+      if (current.x === endX && current.y === endY) {
+        // Reconstruct path
+        const path: { x: number; y: number }[] = []
+        let node: PathNode | null = current
+        while (node) {
+          path.unshift({ x: node.x, y: node.y })
+          node = node.parent
+        }
+        return path
+      }
+
+      // Move current from open to closed
+      openSet.splice(lowestIndex, 1)
+      closedSet.add(`${current.x},${current.y}`)
+
+      // Check neighbors
+      for (const dir of directions) {
+        const neighborX = current.x + dir.dx
+        const neighborY = current.y + dir.dy
+        const key = `${neighborX},${neighborY}`
+
+        // Skip if already evaluated or not walkable
+        if (closedSet.has(key) || !this.isTileWalkable(neighborX, neighborY)) {
+          continue
+        }
+
+        const g = current.g + 1
+        const h = heuristic(neighborX, neighborY)
+        const f = g + h
+
+        // Check if this path is better
+        const existingNode = openSet.find(n => n.x === neighborX && n.y === neighborY)
+        if (existingNode) {
+          if (g < existingNode.g) {
+            existingNode.g = g
+            existingNode.f = f
+            existingNode.parent = current
+          }
+        } else {
+          openSet.push({
+            x: neighborX,
+            y: neighborY,
+            g,
+            h,
+            f,
+            parent: current
+          })
+        }
+      }
+
+      // Prevent infinite loops on large maps
+      if (closedSet.size > 5000) {
+        return null
+      }
+    }
+
+    // No path found
+    return null
+  }
+
+  private stopPathfinding() {
+    this.isFollowingPath = false
+    this.currentPath = []
+    this.pathIndex = 0
+    this.hideDestinationMarker()
   }
 }
