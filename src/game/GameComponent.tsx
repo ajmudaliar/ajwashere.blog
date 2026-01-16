@@ -330,6 +330,8 @@ export function GameComponent() {
                     maxHeight: '300px',
                     width: '320px',
                     overflowY: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    touchAction: 'pan-y',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '8px',
