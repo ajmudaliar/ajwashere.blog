@@ -5,7 +5,10 @@ import Phaser from 'phaser'
 import { IslandScene } from './scenes/IslandScene'
 import { useWebchat } from '@botpress/webchat'
 
-const CLIENT_ID = '577fe118-ba8c-4e9d-86e7-8fa76a1bac92'
+// Use local ADK dev server in development, deployed bot in production
+const CLIENT_ID = import.meta.env.DEV
+  ? '577fe118-ba8c-4e9d-86e7-8fa76a1bac92'  // Local ADK dev
+  : '296319ec-6d39-465a-9f12-87694c0a6c7b'  // Deployed bot
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
