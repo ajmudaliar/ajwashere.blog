@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run sync-bot && tsc -b && vite build",
+    "build": "npm run sync-bot && vite build",
     "sync-bot": "npx tsx scripts/sync-bot-data.ts",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview"
   },
