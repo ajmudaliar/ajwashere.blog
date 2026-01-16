@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Volume2, VolumeX, Send, X } from 'lucide-react'
+import { Volume2, VolumeX, Send, X, History } from 'lucide-react'
 import Phaser from 'phaser'
 import { IslandScene } from './scenes/IslandScene'
 import { useWebchat } from '@botpress/webchat'
@@ -28,6 +28,7 @@ export function GameComponent() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [muted, setMuted] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [chatExpanded, setChatExpanded] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [lastProcessedMessageId, setLastProcessedMessageId] = useState<string | null>(null)
   const [isInConversation, setIsInConversation] = useState(false)
@@ -247,83 +248,150 @@ export function GameComponent() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 2000,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
           }}
         >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '8px',
-              boxShadow: '4px 4px 0px #333',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '4px',
-            }}
-          >
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                e.stopPropagation()
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                } else if (e.key === 'Escape') {
-                  endConversation()
-                }
-              }}
-              onKeyUp={(e) => e.stopPropagation()}
-              placeholder="Say something..."
-              disabled={clientState !== 'connected'}
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '8px' }}>
+            <div
               style={{
-                width: '280px',
-                padding: '10px 12px',
-                fontSize: '14px',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                color: '#333',
+                background: '#fff',
+                borderRadius: '8px',
+                boxShadow: '4px 4px 0px #333',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px',
               }}
-            />
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    sendMessage()
+                  } else if (e.key === 'Escape') {
+                    endConversation()
+                  }
+                }}
+                onKeyUp={(e) => e.stopPropagation()}
+                placeholder="Say something..."
+                disabled={clientState !== 'connected'}
+                style={{
+                  width: '280px',
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  color: '#333',
+                }}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!inputValue.trim() || clientState !== 'connected'}
+                style={{
+                  background: inputValue.trim() && clientState === 'connected' ? '#4a9eff' : '#ccc',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: inputValue.trim() && clientState === 'connected' ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s',
+                }}
+              >
+                <Send size={18} color="#fff" />
+              </button>
+            </div>
+            {/* History button + expanded panel wrapper */}
+            <div
+              onMouseEnter={() => setChatExpanded(true)}
+              onMouseLeave={() => setChatExpanded(false)}
+              style={{ position: 'relative', display: 'flex', alignItems: 'stretch' }}
+            >
+              {chatExpanded && messages.length > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    right: 0,
+                    marginBottom: '8px',
+                    background: '#fff',
+                    borderRadius: '8px',
+                    boxShadow: '4px 4px 0px #333',
+                    padding: '12px',
+                    maxHeight: '300px',
+                    width: '320px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  {messages.map((msg) => {
+                    const isFromUser = user && msg.authorId === user.userId
+                    const text = extractTextFromBlock(msg.block as Record<string, unknown>)
+                    if (!text) return null
+                    return (
+                      <div
+                        key={msg.id}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          background: isFromUser ? '#e3f2fd' : '#f5f5f5',
+                          fontSize: '13px',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          color: '#333',
+                          alignSelf: isFromUser ? 'flex-end' : 'flex-start',
+                          maxWidth: '85%',
+                        }}
+                      >
+                        <div style={{ fontSize: '10px', color: '#666', marginBottom: '4px' }}>
+                          {isFromUser ? 'You' : 'AJ'}
+                        </div>
+                        {text}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <button
+                style={{
+                  background: chatExpanded ? '#e3f2fd' : '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px',
+                  boxShadow: '4px 4px 0px #333',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <History size={18} color="#333" />
+              </button>
+            </div>
             <button
-              onClick={sendMessage}
-              disabled={!inputValue.trim() || clientState !== 'connected'}
+              onClick={endConversation}
               style={{
-                background: inputValue.trim() && clientState === 'connected' ? '#4a9eff' : '#ccc',
+                background: '#fff',
                 border: 'none',
                 borderRadius: '6px',
-                padding: '8px 12px',
-                cursor: inputValue.trim() && clientState === 'connected' ? 'pointer' : 'not-allowed',
+                padding: '10px',
+                boxShadow: '4px 4px 0px #333',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'background 0.2s',
               }}
             >
-              <Send size={18} color="#fff" />
+              <X size={18} color="#333" />
             </button>
           </div>
-          <button
-            onClick={endConversation}
-            style={{
-              background: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '10px',
-              boxShadow: '4px 4px 0px #333',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={18} color="#333" />
-          </button>
         </div>
       )}
 
