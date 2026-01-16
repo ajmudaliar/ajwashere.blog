@@ -342,6 +342,7 @@ export class IslandScene extends Phaser.Scene {
   private npcBubble: Phaser.GameObjects.Container | null = null
   private fadeOverlay!: Phaser.GameObjects.Rectangle
   private isTransitioning = false
+  private isPlayerLocked = false
   private bgMusic!: Phaser.Sound.BaseSound
   private musicStarted = false
   private fireflies: Phaser.GameObjects.Container[] = []
@@ -749,6 +750,18 @@ export class IslandScene extends Phaser.Scene {
 
     // Listen for music toggle from UI
     window.addEventListener('toggleMusic', () => this.toggleMusic())
+
+    // Listen for chat events from React
+    window.addEventListener('npcThinking', () => this.showNpcThinking())
+    window.addEventListener('npcResponse', ((e: CustomEvent) => {
+      this.showNpcResponse(e.detail.text)
+    }) as EventListener)
+    window.addEventListener('lockPlayer', ((e: CustomEvent) => {
+      this.isPlayerLocked = e.detail.locked
+      if (this.isPlayerLocked) {
+        this.stopPathfinding()
+      }
+    }) as EventListener)
 
     // Create dialogue zones
     const getPlayerPos = () => ({ x: this.player.x, y: this.player.y })
@@ -1269,11 +1282,13 @@ export class IslandScene extends Phaser.Scene {
     let velocityX = 0, velocityY = 0, isMoving = false
     let newDirection = this.currentDirection
 
-    // Check for keyboard input (cancels pathfinding)
-    const keyboardActive = this.cursors.left.isDown || this.wasd.A.isDown ||
-                           this.cursors.right.isDown || this.wasd.D.isDown ||
-                           this.cursors.up.isDown || this.wasd.W.isDown ||
-                           this.cursors.down.isDown || this.wasd.S.isDown
+    // Check for keyboard input (cancels pathfinding) - but not when locked
+    const keyboardActive = !this.isPlayerLocked && (
+      this.cursors.left.isDown || this.wasd.A.isDown ||
+      this.cursors.right.isDown || this.wasd.D.isDown ||
+      this.cursors.up.isDown || this.wasd.W.isDown ||
+      this.cursors.down.isDown || this.wasd.S.isDown
+    )
 
     if (keyboardActive) {
       // Cancel any active pathfinding when keyboard is used
@@ -1292,8 +1307,8 @@ export class IslandScene extends Phaser.Scene {
       } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
         velocityY = this.moveSpeed; newDirection = 'down'; isMoving = true
       }
-    } else if (this.isFollowingPath && this.currentPath.length > 0) {
-      // Handle click-to-move pathfinding
+    } else if (!this.isPlayerLocked && this.isFollowingPath && this.currentPath.length > 0) {
+      // Handle click-to-move pathfinding (blocked when locked)
       const target = this.currentPath[this.pathIndex]
       const dx = target.x - this.player.x
       const dy = target.y - this.player.y
@@ -1398,7 +1413,7 @@ export class IslandScene extends Phaser.Scene {
   private handleInteraction() {
     if (this.nearbyBuilding && !this.isTransitioning) {
       if (this.nearbyBuilding.section === 'about') {
-        this.showNpcReply()
+        this.openNpcChat()
       } else {
         // Fade to black then navigate
         this.transitionToPage(`/${this.nearbyBuilding.section}`)
@@ -1427,13 +1442,8 @@ export class IslandScene extends Phaser.Scene {
     })
   }
 
-  private npcReplies = [
-    "Hey there! Chat's coming soon.",
-    "Still setting things up here!",
-    "Check back later for a chat!",
-    "Nice to meet you!",
-  ]
-  private lastReplyIndex = -1
+  private thinkingBubble: Phaser.GameObjects.Container | null = null
+  private thinkingTween: Phaser.Tweens.Tween | null = null
 
   private logoReplies = [
     "That's my site!",
@@ -1444,20 +1454,65 @@ export class IslandScene extends Phaser.Scene {
   ]
   private lastLogoReplyIndex = -1
 
-  private showNpcReply() {
-    // Clean up previous bubble
-    if (this.npcBubble) {
-      this.npcBubble.destroy()
-      this.npcBubble = null
-    }
+  private openNpcChat() {
+    // Dispatch event to React to open chat input
+    window.dispatchEvent(new CustomEvent('openNpcChat'))
+  }
 
-    // Pick a random reply (different from last)
-    let replyIndex = Math.floor(Math.random() * this.npcReplies.length)
-    if (replyIndex === this.lastReplyIndex) {
-      replyIndex = (replyIndex + 1) % this.npcReplies.length
-    }
-    this.lastReplyIndex = replyIndex
-    const message = this.npcReplies[replyIndex]
+  private showNpcThinking() {
+    // Clean up any existing bubbles
+    this.clearNpcBubbles()
+
+    // Create thinking bubble above NPC
+    this.thinkingBubble = this.add.container(this.npc.x, this.npc.y - 30)
+    this.thinkingBubble.setDepth(30000)
+
+    const padding = 8
+
+    // Create dots for thinking animation
+    const dotsText = this.add.text(0, -padding, '...', {
+      fontSize: '10px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#2d2d2d',
+      align: 'center',
+      resolution: 4,
+    })
+    dotsText.setOrigin(0.5, 1)
+
+    // Create bubble graphics
+    const bubble = this.add.graphics()
+    const bubbleWidth = 40
+    const bubbleHeight = 24
+    const tailHeight = 10
+
+    bubble.fillStyle(0xffffff, 0.95)
+    bubble.lineStyle(2, 0x3d3d3d, 1)
+    bubble.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+    bubble.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight, bubbleWidth, bubbleHeight, 6)
+
+    // Tail
+    bubble.fillStyle(0xffffff, 1)
+    bubble.fillTriangle(-6, -1, 6, -1, 0, tailHeight)
+    bubble.lineStyle(2, 0x3d3d3d, 1)
+    bubble.lineBetween(-6, 0, 0, tailHeight)
+    bubble.lineBetween(6, 0, 0, tailHeight)
+
+    this.thinkingBubble.add([bubble, dotsText])
+
+    // Animate the dots (pulsing)
+    this.thinkingTween = this.tweens.add({
+      targets: dotsText,
+      alpha: 0.3,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
+  }
+
+  private showNpcResponse(message: string) {
+    // Clean up any existing bubbles
+    this.clearNpcBubbles()
 
     // Create bubble above NPC
     this.npcBubble = this.add.container(this.npc.x, this.npc.y - 30)
@@ -1465,6 +1520,7 @@ export class IslandScene extends Phaser.Scene {
     this.npcBubble.setAlpha(0)
 
     const padding = 8
+    const maxWidth = 180 // Max width for text wrapping
 
     // Create text (will be filled by typewriter)
     const text = this.add.text(0, -padding, '', {
@@ -1474,6 +1530,7 @@ export class IslandScene extends Phaser.Scene {
       align: 'center',
       lineSpacing: 4,
       resolution: 4,
+      wordWrap: { width: maxWidth, useAdvancedWrap: true },
     })
     text.setOrigin(0.5, 1)
 
@@ -1492,8 +1549,10 @@ export class IslandScene extends Phaser.Scene {
     // Start typewriter effect (bubble grows with text)
     const typingDuration = this.typewriterEffect(text, message, bubble, padding)
 
-    // Auto-dismiss after typing + reading time
-    const dismissDelay = 150 + typingDuration + 2000
+    // Auto-dismiss after typing + reading time (longer for bot responses)
+    const wordCount = message.split(/\s+/).length
+    const readingDelay = Math.max(3000, wordCount * 400)
+    const dismissDelay = 150 + typingDuration + readingDelay
     this.time.delayedCall(dismissDelay, () => {
       if (this.npcBubble) {
         this.tweens.add({
@@ -1507,6 +1566,21 @@ export class IslandScene extends Phaser.Scene {
         })
       }
     })
+  }
+
+  private clearNpcBubbles() {
+    if (this.thinkingTween) {
+      this.thinkingTween.destroy()
+      this.thinkingTween = null
+    }
+    if (this.thinkingBubble) {
+      this.thinkingBubble.destroy()
+      this.thinkingBubble = null
+    }
+    if (this.npcBubble) {
+      this.npcBubble.destroy()
+      this.npcBubble = null
+    }
   }
 
   private playerBubble: Phaser.GameObjects.Container | null = null
@@ -1697,6 +1771,9 @@ export class IslandScene extends Phaser.Scene {
   // ==================== Click-to-Move Pathfinding ====================
 
   private handleClickToMove(targetX: number, targetY: number) {
+    // Don't allow movement when locked
+    if (this.isPlayerLocked) return
+
     // Convert to tile coordinates
     const startTileX = Math.floor(this.player.x / 16)
     const startTileY = Math.floor(this.player.y / 16)
