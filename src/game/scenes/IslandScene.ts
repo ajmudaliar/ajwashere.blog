@@ -335,9 +335,10 @@ export class IslandScene extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap
   private buildingMarkers: Phaser.GameObjects.Container[] = []
   private interactiveZones: { x: number; y: number; section: string; label: string }[] = []
-  private interactPrompt!: Phaser.GameObjects.Text
+  private interactPrompt!: Phaser.GameObjects.Container
   private nearbyBuilding: { section: string; label: string } | null = null
   private interactKey!: Phaser.Input.Keyboard.Key
+  private isTouchDevice = false
   private npc!: Phaser.GameObjects.Sprite
   private npcBubble: Phaser.GameObjects.Container | null = null
   private fadeOverlay!: Phaser.GameObjects.Rectangle
@@ -687,18 +688,45 @@ export class IslandScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E)
     this.interactKey.on('down', () => this.handleInteraction())
 
-    // Interaction prompt (hidden by default)
-    this.interactPrompt = this.add.text(0, 0, 'Press E', {
-      fontSize: '8px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
-      resolution: 4,
-    })
-    this.interactPrompt.setOrigin(0.5, 1)
+    // Detect touch device
+    this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+
+    // Interaction prompt (hidden by default) - container for either text or button
+    this.interactPrompt = this.add.container(0, 0)
     this.interactPrompt.setDepth(20001)
     this.interactPrompt.setVisible(false)
+
+    if (this.isTouchDevice) {
+      // Mobile: circular button
+      const buttonBg = this.add.circle(0, 0, 14, 0xffffff)
+      buttonBg.setStrokeStyle(2, 0x333333)
+      const buttonText = this.add.text(0, 0, '!', {
+        fontSize: '12px',
+        fontFamily: 'Arial, sans-serif',
+        fontStyle: 'bold',
+        color: '#333333',
+        resolution: 4,
+      })
+      buttonText.setOrigin(0.5, 0.5)
+      this.interactPrompt.add([buttonBg, buttonText])
+    } else {
+      // Desktop: "Press E" text (also clickable)
+      const promptText = this.add.text(0, 0, 'Press E', {
+        fontSize: '8px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2,
+        resolution: 4,
+      })
+      promptText.setOrigin(0.5, 0.5)
+      this.interactPrompt.add(promptText)
+    }
+
+    // Make prompt interactive (clickable/tappable)
+    this.interactPrompt.setSize(this.isTouchDevice ? 28 : 40, this.isTouchDevice ? 28 : 16)
+    this.interactPrompt.setInteractive({ useHandCursor: true })
+    this.interactPrompt.on('pointerdown', () => this.handleInteraction())
 
     // Show welcome bubble on spawn (only if not seen before)
     if (!sessionStorage.getItem('welcomeSeen')) {

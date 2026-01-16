@@ -28,6 +28,7 @@ export function GameComponent() {
   const containerRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [muted, setMuted] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
@@ -35,9 +36,27 @@ export function GameComponent() {
   const [inputValue, setInputValue] = useState('')
   const [lastProcessedMessageId, setLastProcessedMessageId] = useState<string | null>(null)
   const [isInConversation, setIsInConversation] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Botpress webchat hook
   const { client, messages, clientState, user, newConversation } = useWebchat({ clientId: CLIENT_ID })
+
+  // Scroll to bottom of messages on mobile when new messages arrive
+  useEffect(() => {
+    if (isMobile && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isMobile])
 
   // Track if we've started a conversation this session (resets on page reload)
   const hasStartedConversation = useRef(false)
@@ -242,8 +261,153 @@ export function GameComponent() {
     <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
-      {/* Chat Input Overlay */}
-      {chatOpen && (
+      {/* Chat Overlay - Full screen on mobile, floating on desktop */}
+      {chatOpen && isMobile && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 2000,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Header with close button */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px',
+              paddingTop: 'max(16px, env(safe-area-inset-top))',
+            }}
+          >
+            <div style={{ color: '#fff', fontSize: '16px', fontWeight: '600', fontFamily: 'system-ui' }}>
+              Chat with AJ
+            </div>
+            <button
+              onClick={endConversation}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <X size={20} color="#fff" />
+            </button>
+          </div>
+
+          {/* Messages area */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '0 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            {messages.map((msg) => {
+              const isFromUser = user && msg.authorId === user.userId
+              const text = extractTextFromBlock(msg.block as Record<string, unknown>)
+              if (!text) return null
+              return (
+                <div
+                  key={msg.id}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    background: isFromUser ? '#4a9eff' : '#fff',
+                    color: isFromUser ? '#fff' : '#333',
+                    fontSize: '15px',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    alignSelf: isFromUser ? 'flex-end' : 'flex-start',
+                    maxWidth: '85%',
+                  }}
+                >
+                  {text}
+                </div>
+              )
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input area */}
+          <div
+            style={{
+              padding: '16px',
+              paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+              background: 'rgba(0,0,0,0.5)',
+            }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px 4px 4px 16px',
+              }}
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    sendMessage()
+                  }
+                }}
+                onKeyUp={(e) => e.stopPropagation()}
+                placeholder="Say something..."
+                disabled={clientState !== 'connected'}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  fontSize: '16px',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  color: '#333',
+                }}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!inputValue.trim() || clientState !== 'connected'}
+                style={{
+                  background: inputValue.trim() && clientState === 'connected' ? '#4a9eff' : '#ccc',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '44px',
+                  height: '44px',
+                  cursor: inputValue.trim() && clientState === 'connected' ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Send size={20} color="#fff" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Chat Input Overlay */}
+      {chatOpen && !isMobile && (
         <div
           style={{
             position: 'absolute',
