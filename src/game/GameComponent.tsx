@@ -808,7 +808,7 @@ export function GameComponent() {
               margin: '0 0 40px 0',
             }}
           >
-            Arrow keys to move · E to interact
+            Click or arrow keys to move · E to interact
           </p>
 
           {/* Navigation links - horizontal */}
