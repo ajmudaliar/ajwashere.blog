@@ -640,7 +640,7 @@ export class IslandScene extends Phaser.Scene {
     this.catBox.setScale(0.8)
     this.catBox.setDepth(catBoxY)
 
-    // Create "About me" marker above NPC
+    // Create "Ask me anything" marker above NPC
     this.createNpcMarker(npcX, npcY)
 
     // Add interaction zone at NPC position
@@ -648,7 +648,7 @@ export class IslandScene extends Phaser.Scene {
       x: npcX,
       y: npcY,
       section: 'about',
-      label: 'About me'
+      label: 'Ask me anything'
     })
 
     // Add bridge marker and interaction zone (manual - not from tilemap)
@@ -728,10 +728,7 @@ export class IslandScene extends Phaser.Scene {
     this.interactPrompt.setInteractive({ useHandCursor: true })
     this.interactPrompt.on('pointerdown', () => this.handleInteraction())
 
-    // Show welcome bubble on spawn (only if not seen before)
-    if (!sessionStorage.getItem('welcomeSeen')) {
-      this.showWelcomeBubble()
-    }
+    // Welcome sequence removed - now handled by main menu overlay
 
     // Create fade overlay for transitions (covers entire screen, starts solid black)
     this.fadeOverlay = this.add.rectangle(
@@ -1230,7 +1227,7 @@ export class IslandScene extends Phaser.Scene {
     container.add(arrow)
 
     // Add text label above the arrow
-    const label = this.add.text(0, -18, 'About me', {
+    const label = this.add.text(0, -18, 'Ask me anything', {
       fontSize: '8px',
       fontFamily: 'Arial, sans-serif',
       color: '#ffffff',

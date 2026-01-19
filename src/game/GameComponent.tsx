@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Volume2, VolumeX, Send, X, History } from 'lucide-react'
+import { Volume2, VolumeX, Send, X, History, Menu, Linkedin, Instagram, Mail } from 'lucide-react'
 import Phaser from 'phaser'
 import { IslandScene } from './scenes/IslandScene'
 import { useWebchat } from '@botpress/webchat'
@@ -26,10 +26,9 @@ const config: Phaser.Types.Core.GameConfig = {
 export function GameComponent() {
   const gameRef = useRef<Phaser.Game | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [mainMenuOpen, setMainMenuOpen] = useState(true)
   const [muted, setMuted] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [chatExpanded, setChatExpanded] = useState(false)
@@ -246,16 +245,10 @@ export function GameComponent() {
     }
   }, [])
 
-  // Close menu when clicking outside
+  // Lock player movement when main menu is open
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [menuOpen])
+    window.dispatchEvent(new CustomEvent('lockPlayer', { detail: { locked: mainMenuOpen } }))
+  }, [mainMenuOpen])
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
@@ -585,74 +578,314 @@ export function GameComponent() {
         </div>
       )}
 
-      <div
-        style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          zIndex: 1000,
-        }}
-      >
-        {/* Mute Button */}
-        <button
-          onClick={() => {
-            setMuted(!muted)
-            window.dispatchEvent(new CustomEvent('toggleMusic'))
-          }}
+      {/* Main Menu Overlay */}
+      {mainMenuOpen && (
+        <div
           style={{
-            fontSize: '18px',
-            fontFamily: 'system-ui',
-            color: '#333',
-            background: '#fff',
-            padding: '6px 10px',
-            borderRadius: '4px',
-            boxShadow: '4px 4px 0px #333',
-            fontWeight: 'bold',
-            border: 'none',
-            cursor: 'pointer',
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            zIndex: 3000,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '40px',
-            height: '36px',
-            transition: 'transform 0.1s, box-shadow 0.1s',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translate(-2px, -2px)'
-            e.currentTarget.style.boxShadow = '6px 6px 0px #333'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translate(0, 0)'
-            e.currentTarget.style.boxShadow = '4px 4px 0px #333'
+          onClick={() => setMainMenuOpen(false)}
+        >
+          {/* Top right controls */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Social links */}
+            <a
+              href="https://linkedin.com/in/ajaykumarmudaliar"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#fff',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <Linkedin size={20} />
+            </a>
+            <a
+              href="https://www.instagram.com/loreofajay/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#fff',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <Instagram size={20} />
+            </a>
+            <a
+              href="mailto:ajay.selvamk@gmail.com"
+              style={{
+                color: '#fff',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <Mail size={20} />
+            </a>
+
+            {/* Mute button */}
+            <button
+              onClick={() => {
+                setMuted(!muted)
+                window.dispatchEvent(new CustomEvent('toggleMusic'))
+              }}
+              style={{
+                fontSize: '18px',
+                fontFamily: 'system-ui',
+                color: '#fff',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              {muted ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+          </div>
+
+          {/* Content card */}
+          <div
+            style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              borderRadius: '16px',
+              padding: isMobile ? '32px 24px' : '48px 64px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+          {/* Title */}
+          <h1
+            style={{
+              fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+              fontSize: isMobile ? '1.5rem' : '2rem',
+              color: '#fff',
+              margin: 0,
+              fontWeight: 600,
+            }}
+          >
+            ajwashere.blog
+          </h1>
+
+          {/* Tagline */}
+          <p
+            style={{
+              fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+              fontSize: '0.9rem',
+              color: 'rgba(255, 255, 255, 0.6)',
+              margin: '8px 0 24px 0',
+            }}
+          >
+            notes from a curious mind
+          </p>
+
+          {/* Intro text */}
+          <p
+            style={{
+              fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+              fontSize: '0.85rem',
+              color: 'rgba(255, 255, 255, 0.8)',
+              margin: '0 0 32px 0',
+              maxWidth: '320px',
+              lineHeight: 1.6,
+              textAlign: 'center',
+            }}
+          >
+            Welcome to my little corner of the internet. Explore the island or chat with me.
+          </p>
+
+          {/* Main CTA */}
+          <button
+            onClick={() => setMainMenuOpen(false)}
+            style={{
+              fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+              fontSize: '1rem',
+              color: '#1a1a2e',
+              background: '#fff',
+              padding: '12px 32px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 600,
+              boxShadow: '4px 4px 0px rgba(255, 255, 255, 0.3)',
+              transition: 'transform 0.1s, box-shadow 0.1s',
+              marginBottom: '16px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translate(-2px, -2px)'
+              e.currentTarget.style.boxShadow = '6px 6px 0px rgba(255, 255, 255, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translate(0, 0)'
+              e.currentTarget.style.boxShadow = '4px 4px 0px rgba(255, 255, 255, 0.3)'
+            }}
+          >
+            Explore the Island
+          </button>
+
+          {/* Controls hint */}
+          <p
+            style={{
+              fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+              fontSize: '0.75rem',
+              color: 'rgba(255, 255, 255, 0.4)',
+              margin: '0 0 40px 0',
+            }}
+          >
+            Arrow keys to move · E to interact
+          </p>
+
+          {/* Navigation links - horizontal */}
+          <div style={{ textAlign: 'center' }}>
+            <p
+              style={{
+                fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+                fontSize: '0.7rem',
+                color: 'rgba(255, 255, 255, 0.4)',
+                margin: '0 0 12px 0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+            >
+              Quick Links
+            </p>
+            <nav style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '16px' : '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {[
+                { to: '/library', label: 'Library', comingSoon: false },
+                { to: '/travels', label: 'Travels', comingSoon: false },
+                { to: '/blog', label: 'Blog', comingSoon: true },
+                { to: '/projects', label: 'Projects', comingSoon: true },
+              ].map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  style={{
+                    fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+                    fontSize: '0.9rem',
+                    color: item.comingSoon ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.7)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = item.comingSoon ? 'rgba(255, 255, 255, 0.6)' : '#fff'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = item.comingSoon ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.7)'
+                  }}
+                >
+                  {item.label}{item.comingSoon && <span style={{ fontSize: '0.65rem', marginLeft: '4px', opacity: 0.7 }}>✦</span>}
+                </Link>
+              ))}
+            </nav>
+          </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top-right controls when overlay is closed */}
+      {!mainMenuOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 20,
+            right: 20,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
           }}
         >
-          {muted ? <Volume2 size={20} /> : <VolumeX size={20} />}
-        </button>
-        {/* Burger Menu */}
-        <div ref={menuRef} style={{ position: 'relative' }}>
+          {/* Menu button */}
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => setMainMenuOpen(true)}
             style={{
-              fontSize: '18px',
-              fontFamily: 'system-ui',
               color: '#333',
               background: '#fff',
-              padding: '6px 10px',
-              borderRadius: '4px',
+              height: '40px',
+              width: '40px',
+              borderRadius: '6px',
               boxShadow: '4px 4px 0px #333',
-              fontWeight: 'bold',
               border: 'none',
               cursor: 'pointer',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '40px',
-              height: '36px',
               transition: 'transform 0.1s, box-shadow 0.1s',
             }}
             onMouseEnter={(e) => {
@@ -664,82 +897,42 @@ export function GameComponent() {
               e.currentTarget.style.boxShadow = '4px 4px 0px #333'
             }}
           >
-            <span style={{ display: 'block', width: '18px', height: '2px', background: '#333', borderRadius: '1px' }} />
-            <span style={{ display: 'block', width: '18px', height: '2px', background: '#333', borderRadius: '1px' }} />
-            <span style={{ display: 'block', width: '18px', height: '2px', background: '#333', borderRadius: '1px' }} />
+            <Menu size={20} />
           </button>
-          {menuOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: '8px',
-                background: '#fff',
-                borderRadius: '4px',
-                boxShadow: '4px 4px 0px #333',
-                overflow: 'hidden',
-                minWidth: '140px',
-              }}
-            >
-              {[
-                { to: '/projects', label: 'Things i\'m working on' },
-                { to: '/library', label: 'library' },
-                { to: '/blog', label: 'blog' },
-                { to: '/travels', label: 'travels' },
-              ].map((item, index, arr) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMenuOpen(false)}
-                  style={{
-                    display: 'block',
-                    padding: '10px 16px',
-                    fontSize: '14px',
-                    fontFamily: 'system-ui',
-                    color: '#333',
-                    textDecoration: 'none',
-                    fontWeight: '600',
-                    borderBottom: index < arr.length - 1 ? '1px solid #eee' : 'none',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          )}
+
+          {/* Logo/Branding */}
+          <div
+            style={{
+              fontSize: '14px',
+              fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+              color: '#333',
+              background: '#fff',
+              height: '40px',
+              padding: '0 16px',
+              borderRadius: '6px',
+              boxShadow: '4px 4px 0px #333',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'transform 0.1s, box-shadow 0.1s',
+            }}
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('logoClicked'))
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translate(-2px, -2px)'
+              e.currentTarget.style.boxShadow = '6px 6px 0px #333'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translate(0, 0)'
+              e.currentTarget.style.boxShadow = '4px 4px 0px #333'
+            }}
+          >
+            ajwashere.blog
+          </div>
         </div>
-        {/* Branding */}
-        <div
-          style={{
-            fontSize: '18px',
-            fontFamily: 'system-ui',
-            color: '#333',
-            background: '#fff',
-            padding: '6px 14px',
-            borderRadius: '4px',
-            boxShadow: '4px 4px 0px #333',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            transition: 'transform 0.1s, box-shadow 0.1s',
-          }}
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent('logoClicked'))
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translate(-2px, -2px)'
-            e.currentTarget.style.boxShadow = '6px 6px 0px #333'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translate(0, 0)'
-            e.currentTarget.style.boxShadow = '4px 4px 0px #333'
-          }}
-        >
-          ajwashere.blog
-        </div>
-      </div>
+      )}
     </div>
   )
 }
