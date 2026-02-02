@@ -43,16 +43,8 @@ bun run build
 bun run preview
 ```
 
-## Project Structure
-
-See [CLAUDE.md](./CLAUDE.md) for detailed architecture documentation.
-
 ## Credits
 
 - Tileset: [Fantasy Tileset Premium](https://itch.io) from itch.io
 - Character sprites: Various itch.io artists
 - Music: Lo-fi background track
-
-## Vision
-
-See [theidea.md](./theidea.md) for the full concept and roadmap.
