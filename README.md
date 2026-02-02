@@ -1,5 +1,12 @@
 # ajwashere.blog
 
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org)
+[![Phaser](https://img.shields.io/badge/Phaser-3-8B89CC)](https://phaser.io)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite)](https://vite.dev)
+
+**[Visit the live site](https://ajwashere.blog)**
+
 A Pokemon-style overworld as a personal website. Visitors control a sprite, walk around, and discover content by exploring a floating island village — not clicking nav links.
 
 ## The Experience
