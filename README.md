@@ -7,6 +7,8 @@
 
 **[Visit the live site](https://ajwashere.blog)**
 
+![Screenshot](./screenshot.png)
+
 A Pokemon-style overworld as a personal website. Visitors control a sprite, walk around, and discover content by exploring a floating island village — not clicking nav links.
 
 ## The Experience
