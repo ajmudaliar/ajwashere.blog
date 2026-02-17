@@ -1,4 +1,4 @@
-# The Idea
+# Vision
 
 A Pokemon-style overworld as a personal website. Visitors control a sprite, walk around, and discover content by exploring a world — not clicking nav links.
 
@@ -8,7 +8,7 @@ A Pokemon-style overworld as a personal website. Visitors control a sprite, walk
 
 - **Top-down pixel art world** (Game Boy / SNES era aesthetic)
 - **WASD / arrow keys** to move
-- **Interact button** (spacebar? enter?) to engage with objects/NPCs
+- **Interact button** (E / spacebar) to engage with objects/NPCs
 - **The world IS the portfolio** — exploration replaces navigation
 
 ---
@@ -113,7 +113,7 @@ A Pokemon-style overworld as a personal website. Visitors control a sprite, walk
 
 ---
 
-## Vibe Check
+## Vibe
 
 - Cozy
 - Nostalgic
@@ -130,14 +130,6 @@ A Pokemon-style overworld as a personal website. Visitors control a sprite, walk
 
 ---
 
-## Open Questions
-
-- Room/page UI style (pixel art or modern?) — TBD
-- What engine/library? (Phaser? custom canvas? React-based?)
-- What are the cats' names?
-
----
-
 ## Content Sources
 
 - **Notion API** → reading list (Library)
@@ -145,44 +137,3 @@ A Pokemon-style overworld as a personal website. Visitors control a sprite, walk
 - **Photos** → TBD
 - **Projects** → TBD
 - **Gym data** → TBD
-
----
-
-## Implementation Plan
-
-### Phase 1: Proof of Concept ✅
-- [x] Phaser 3 running in React
-- [x] Simple tilemap (hardcoded grass/water/trees)
-- [x] Character sprite that moves with arrow keys
-- [x] Camera follows character
-- **Validate:** Can you walk around a basic island? ✅
-
-### Phase 2: The World ✅
-- [x] Design island map in Tiled
-- [x] Import tilemap JSON into Phaser
-- [x] Collision detection (trees, buildings, water)
-- [x] Interaction zones (press E near objects)
-- **Validate:** Does the island feel right? ✅
-
-### Phase 3: Transitions ✅
-- [x] Fade transition (black overlay)
-- [x] Hook interactions to React navigation
-- [ ] Return to game at same position (currently reloads)
-- **Validate:** Full loop — walk, interact, view, return ✅
-
-### Phase 4: Polish & Content 🚧
-- [x] Real pixel art assets (Fantasy Tileset Premium)
-- [ ] Two ragdoll cats (wandering NPCs)
-- [x] Lo-fi background music
-- [ ] Different tracks per zone
-- [x] Particle effects (fireflies, falling leaves)
-- [ ] Secrets & easter eggs
-- [ ] Mobile illustrated map fallback
-- [x] Content pages (Projects, Reading List, Blog, Travels) — all under construction
-- [x] Welcome message sequence on game start
-- [x] Adventure zone auto-dialogue (bottom-right of map)
-- [x] NPC with cycling dialogue
-- [x] Logo click triggers character speech
-- [x] Burger menu navigation
-- [ ] Socials integration
-- [ ] Contact/leads form
